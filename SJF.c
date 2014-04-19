@@ -1,4 +1,4 @@
 #include "util.h"
 
-void SJF (Proces *proces) {
+void SJF (Process *process) {
 }
