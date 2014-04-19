@@ -3,6 +3,6 @@
 
 asmlinkage int sys_printkk(char* s)
 {
-	printk("s");
+	printk(s);
 	return 1;
 }
