@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include "util.h"
-#include "RR.h"
 
 void swapCharPointer (char **c1, char **c2) {
 	char *tmp;
