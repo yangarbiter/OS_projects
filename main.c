@@ -4,13 +4,13 @@
 
 int main (int argc, char *argv[]){
 	int S, i;
-	Proces *proc = malloc(sizeof(Proces));
+	Process *proc = malloc(sizeof(Process));
 	scanf("%s", S);
 	scanf("%d", proc->numOfProc);
 
 	proc->procs = malloc(sizeof(int*) * proc->numOfProc);
 	for(i=0; i<proc->numOfProc; i++){
-		proc->proces[i] = malloc(sizeof(int) * 3);
+		proc->process[i] = malloc(sizeof(int) * 3);
 	}
 	
 	if(!strcmp(S, "FIFO")){
