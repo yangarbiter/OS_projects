@@ -3,6 +3,7 @@
 #include<stdio.h>
 #include<stdlib.h>
 #include<sys/wait.h>
+#include <sys/types.h>
 
 #define RUN(time) \
 		{ volatile unsigned long j; for(j=0;j<time;j++){ \

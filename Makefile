@@ -1,10 +1,11 @@
 CC = gcc
 CFLAG = -Wall -std=c99
+OBJS = FIFO.o RR.o SJF.o syscall.o
 
-all: main.c FIFO.o RR.o SJF.o syscall.o
+all: main.c $(OBJS)
 	$(CC) $(CFLAG) $^ -o scheduler
 
-%.o: $*.c
+$(OBJS): %.o: %.c
 	$(CC) $(CFLAG) -c $*.c -o $*.o
 
 clean:

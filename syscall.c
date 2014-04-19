@@ -1,4 +1,7 @@
+#define _GNU_SOURCE
 #include <time.h>
+#include <unistd.h>
+#include <sys/syscall.h>
 #include "util.h"
 
 #define __NR_gettime 315
