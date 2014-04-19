@@ -23,7 +23,7 @@ void swapUnsignedInt (unsigned int *c1, unsigned int *c2) {
 
 void sigusr1_handler (int param)
 {
-	printf("sigusr1\n");
+	//printf("sigusr1 %d\n", getpid());
 	nice(-19);
 }
 
@@ -36,6 +36,7 @@ int main (int argc, char *argv[]){
 	char S[1024];
 	int i, j;
 	Process *proc = (Process*) malloc(sizeof(Process));
+	nice(-19);
 
 	signal(SIGUSR1, sigusr1_handler);
 	signal(SIGUSR2, sigusr2_handler);

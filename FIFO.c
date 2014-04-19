@@ -7,8 +7,8 @@
 
 #define RUN(time) \
 		{ volatile unsigned long j; for(j=0;j<time;j++){ \
-		{ volatile unsigned long i; for(i=0;i<1000000UL;i++); } \
-													   }}
+		{ volatile unsigned long i; for(i=0;i<1000000UL;i++); }}}
+
 static int current;
 static time_t s_start, s_end;
 static long ns_start, ns_end;
@@ -17,7 +17,7 @@ static pid_t* pid;
 void sigchld_handler(int param){
 	char s[50];
 	wait(NULL);
-	printf("sigchld!");
+	//printf("sigchld!");
 
 	gettime(&s_end, &ns_end);
 	snprintf(s, 50, "%d %d.%ld %d.%ld\n", pid[current],
@@ -50,10 +50,10 @@ void FIFO(Process* process){
 		if(pid[i] < 0){
 			printf("fork fail\n");
 		}else if(pid[i] == 0){
-			signal(SIGCHLD, NULL);
+			//signal(SIGCHLD, NULL);
 
-			//if(i!=0)nice(20);
-			//else nice(-19);
+			if(i!=0)nice(20);
+			else nice(-19);
 
 			RUN(process->T[i]);
 			printf("%d\n", getpid());
