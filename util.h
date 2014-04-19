@@ -2,13 +2,14 @@
 #ifndef UTIL
 #define UTIL
 
-typedef struct _Proces{
+typedef struct _Process{
 	int numOfProc;
-	int **procs;
-}Proces
+	char **N;
+	unsigned int *R, *T;
+}Process;
 
-void FIFO(Proces* proces);
-void RR(Proces* proces);
-void SJF(Proces* proces);
+void FIFO(Process* process);
+void RR(Process* process);
+void SJF(Process* process);
 
 #endif
