@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+#include <sched.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -42,6 +44,12 @@ int main (int argc, char *argv[]){
 			}
 		}
 	}
+	
+	//設定只能一個CPU
+	cpu_set_t cmask;
+	CPU_ZERO(&cmask);
+	CPU_SET(0, &cmask);
+	sched_setaffinity(0, sizeof(cpu_set_t), &cmask);
 	
 	if(!strcmp(S, "FIFO")){
 		FIFO(proc);
