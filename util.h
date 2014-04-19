@@ -5,7 +5,7 @@
 typedef struct _Process{
 	int numOfProc;
 	int **procs;
-}Process
+}Process;
 
 void FIFO(Process* process);
 void RR(Process* process);

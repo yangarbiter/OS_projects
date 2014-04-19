@@ -1,16 +1,19 @@
-#include<stdio.h>
-#include<string.h>
-#include"util.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "util.h"
 
 int main (int argc, char *argv[]){
-	int S, i;
-	Process *proc = malloc(sizeof(Process));
-	scanf("%s", S);
-	scanf("%d", proc->numOfProc);
+	char S[1024];
+	int i;
+	Process *proc = (Process*) malloc(sizeof(Process));
 
-	proc->procs = malloc(sizeof(int*) * proc->numOfProc);
+	scanf("%s", S);
+	scanf("%d", &proc->numOfProc);
+
+	proc->procs = (int**) malloc(sizeof(int*) * proc->numOfProc);
 	for(i=0; i<proc->numOfProc; i++){
-		proc->process[i] = malloc(sizeof(int) * 3);
+		proc->procs[i] = (int*) malloc(sizeof(int) * 3);
 	}
 	
 	if(!strcmp(S, "FIFO")){
