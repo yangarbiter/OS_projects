@@ -9,5 +9,5 @@ asmlinkage int sys_gettime(time_t *s, long *ns)
 	getnstimeofday(&time);
 	*s = time.tv_sec;
 	*ns = time.tv_nsec;
-	return 2;
+	return 0;
 }
