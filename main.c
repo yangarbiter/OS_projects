@@ -1,6 +1,10 @@
+#define _GNU_SOURCE
+#include <sched.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
+#include <unistd.h>
 #include "util.h"
 
 void swapCharPointer (char **c1, char **c2) {
@@ -17,10 +21,24 @@ void swapUnsignedInt (unsigned int *c1, unsigned int *c2) {
 	*c2 = tmp;
 }
 
+void sigusr1_handler (int param)
+{
+	printf("sigusr1\n");
+	nice(-19);
+}
+
+void sigusr2_handler (int param)
+{
+	nice(20);
+}
+
 int main (int argc, char *argv[]){
 	char S[1024];
 	int i, j;
 	Process *proc = (Process*) malloc(sizeof(Process));
+
+	signal(SIGUSR1, sigusr1_handler);
+	signal(SIGUSR2, sigusr2_handler);
 
 	scanf("%s", S);
 	scanf("%d", &proc->numOfProc);
@@ -42,6 +60,12 @@ int main (int argc, char *argv[]){
 			}
 		}
 	}
+	
+	//設定只能一個CPU
+	cpu_set_t cmask;
+	CPU_ZERO(&cmask);
+	CPU_SET(0, &cmask);
+	sched_setaffinity(0, sizeof(cpu_set_t), &cmask);
 	
 	if(!strcmp(S, "FIFO")){
 		FIFO(proc);
