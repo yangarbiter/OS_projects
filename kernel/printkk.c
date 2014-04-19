@@ -4,5 +4,5 @@
 asmlinkage int sys_printkk(char* s)
 {
 	printk(s);
-	return 1;
+	return 0;
 }
