@@ -2,7 +2,7 @@
 #include<unistd.h>
 
 #define RUN(time) \
-		{ volatile unsigned long i; for(i=0;i<time;i++); }
+		{ volatile unsigned long i; for(i=0;i<1000000UL*time;i++); }
 
 void FIFO(Process* process){
 	int i;
@@ -10,7 +10,7 @@ void FIFO(Process* process){
 	pid_t* pid = (pid_t*)malloc(sizeof(pid_t) * process->numOfProcess);
 
 	for(i=0; i<process->numOfProcess; i++){
-		if(now-(process->R[i])) > 0)
+		if(now-(process->R[i]) > 0)
 			RUN(now-(process->R[i]));
 		now = process->R[i];
 		pid[i] = fork();
