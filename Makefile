@@ -1,2 +1,2 @@
 all: main.c util.h
-	gcc -Wall main.c -o main
+	gcc -Wall main.c FIFO.c -o main
