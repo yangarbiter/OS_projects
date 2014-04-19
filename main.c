@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
+#include <unistd.h>
 #include "util.h"
 
 void swapCharPointer (char **c1, char **c2) {
@@ -19,10 +21,23 @@ void swapUnsignedInt (unsigned int *c1, unsigned int *c2) {
 	*c2 = tmp;
 }
 
+void sigusr1_handler (int param)
+{
+	nice(-19);
+}
+
+void sigusr2_handler (int param)
+{
+	nice(20);
+}
+
 int main (int argc, char *argv[]){
 	char S[1024];
 	int i, j;
 	Process *proc = (Process*) malloc(sizeof(Process));
+
+	signal(SIGUSR1, sigusr1_handler);
+	signal(SIGUSR2, sigusr2_handler);
 
 	scanf("%s", S);
 	scanf("%d", &proc->numOfProc);
