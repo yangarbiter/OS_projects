@@ -42,18 +42,14 @@ int main (int argc, char *argv[]){
 			}
 		}
 	}
-
-	for (i = 0 ; i < proc->numOfProc ; i++) {
-		printf ("%s %d %d\n", proc->N[i], proc->R[i], proc->T[i]);
-	}
 	
-	// if(!strcmp(S, "FIFO")){
-	// 	FIFO(proc);
-	// }else if(!strcmp(S, "RR")){
-	// 	RR(proc);
-	// }else{
-	// 	SJF(proc);
-	// }
+	if(!strcmp(S, "FIFO")){
+		FIFO(proc);
+	}else if(!strcmp(S, "RR")){
+		RR(proc);
+	}else{
+		SJF(proc);
+	}
 
 	return 0;
 }
