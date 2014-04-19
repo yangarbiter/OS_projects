@@ -1,103 +1,149 @@
+#define _POSIX_SOURCE
+#define _XOPEN_SOURCE
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/wait.h>
 #include <sys/types.h>
+#include <signal.h>
+#include <pthread.h>
 #include "util.h"
 
 #define WAIT \
 	{volatile unsigned int i; for (i = 0 ; i < 1000000UL ; i++) ;}
 
-/* return -1 if no next */
-int pickNext (const Process *process, const int *finish, unsigned int time) {
-	int i, p;
+typedef enum {
+	INITIAL, READY, RUNNING, TERMINATE
+} State;
 
-	p = -1;
-	for (i = 0 ; i < process->numOfProc ; i++) {
-		if (!finish[i] && process->R[i] <= time) {
-			if (p == -1) {
-				p = i;
-			}
-			else if (process->T[i] < process->T[p]) {
-				p = i;
-			}
-		}
-	}
-	if (p != -1) { /* Ready queue is not empty */
-		return p;
-	}
+typedef struct {
+	State state;
+	pid_t pid;
+	time_t st_s, ed_s;
+	long st_ns, ed_ns;
+} ProcessAccounting;
+ProcessAccounting *procInfo;
 
-	/* Ready queue is empty */
-	for (i = 0 ; i < process->numOfProc ; i++) {
-		if (!finish[i]) {
-			if (p == -1) {
-				p = i;
-			}
-			else if (process->R[i] == process->R[p] && process->T[i] < process->T[p]) {
-				p = i;
-			}
-			else if (process->R[i] > process->R[p]) {
+sig_atomic_t pick, complete;
+
+void SIGCHLDHandler (int param) {
+	pick = 1;
+	complete++;
+}
+
+typedef struct {
+	Process *process;
+} HandleProcessArgs;
+
+void* handleProcess (void *arg) {
+	HandleProcessArgs *_arg = (HandleProcessArgs*) arg;
+	const Process *process = _arg->process;
+	pid_t pid;
+	int p;
+	time_t s;
+	long ns;
+
+	char msg[1024];
+
+	int i;
+
+	pick = 0;
+	signal (SIGCHLD, SIGCHLDHandler);
+
+	while (complete < process->numOfProc) {
+		while (pick == 0) ;
+		gettime (&s, &ns);
+		pid = wait (NULL);
+
+		for (p = 0 ; p < process->numOfProc ; p++) {
+			if (procInfo[p].pid == pid) {
 				break;
 			}
 		}
+
+		procInfo[p].state = TERMINATE;
+		procInfo[p].ed_s = s;
+		procInfo[p].ed_ns = ns;
+
+		snprintf (msg, sizeof (msg), "%d %u.%ld %u.%ld\n",
+				  (int) procInfo[p].pid,
+				  (unsigned int) procInfo[p].st_s, procInfo[p].st_ns,
+				  (unsigned int) procInfo[p].ed_s, procInfo[p].ed_ns);
+		printkk (msg);
+
+		p = -1;
+		for (i = 0 ; i < process->numOfProc ; i++) {
+			if (procInfo[i].state == READY) {
+				if (p == -1) {
+					p = i;
+				}
+				else if (process->T[i] < process->T[p]) {
+					p = i;
+				}
+			}
+		}
+		if (p != -1) {
+			gettime (&procInfo[p].st_s, &procInfo[p].st_ns);
+			kill (procInfo[p].pid, SIGUSR1);
+			procInfo[p].state = RUNNING;
+		}
+
+		pick = 0;
 	}
 
-	return p;
+	return NULL;
 }
 
 void SJF (Process *process) {
 	unsigned int t;
-	int *finish;
-	pid_t *pid;
-	int w, next;
+	int i;
 
-	time_t st_s, ed_s;
-	long st_ns, ed_ns;
+	pthread_t tid;
 
-	char msg[1024];
+	complete = 0;
+
+	pthread_create (&tid, NULL, handleProcess, process);
 
 	t = 0;
-	finish = (int*) calloc (process->numOfProc, sizeof (int));
-	pid = (pid_t*) malloc (process->numOfProc * sizeof (pid_t));
-	while (1) {
-		next = pickNext (process, finish, t);
-
-		if (next == -1) {
-			break;
-		}
-		else if (process->R[next] <= t) {
-			pid[next] = fork ();
-			if (pid[next] == 0) {
-				for (w = 0 ; w < process->T[next] ; w++) {
-					WAIT;
-				}
-
-				exit (0);
-			}
-			else if (pid[next] > 0) {
-				printf ("%s %d\n", process->N[next], (int) pid[next]);
-				gettime (&st_s, &st_ns);
-				waitpid (pid[next], NULL, 0);
-				gettime (&ed_s, &ed_ns);
-
-				snprintf (msg, sizeof (msg), "%d %u.%ld %u.%ld\n", (int) pid[next], (unsigned int) st_s, st_ns, (unsigned int) ed_s, ed_ns);
-				printkk (msg);
-
-				t += process->T[next];
-				finish[next] = 1;
-			}
-			else {
-				fprintf (stderr, "Error fork new process\n");
-
-				exit (1);
-			}
-		}
-		else {
-			for (w = 0 ; w < process->R[next] - t ; w++) {
-				WAIT;
-			}
-
-			t += w;
-		}
+	procInfo = (ProcessAccounting*) malloc (process->numOfProc * sizeof (ProcessAccounting));
+	for (i = 0 ; i < process->numOfProc ; i++) {
+		procInfo[i].state = INITIAL;
+		procInfo[i].pid   = 0;
+		procInfo[i].st_s  = procInfo[i].ed_s  = 0;
+		procInfo[i].st_ns = procInfo[i].ed_ns = 0;
 	}
+	while (complete < process->numOfProc) {
+		for (i = 0 ; i < process->numOfProc ; i++) {
+			if (procInfo[i].state == INITIAL && process->R[i] <= t) {
+				procInfo[i].pid = fork ();
+				if (procInfo[i].pid == 0) {
+					int w;
+
+					nice (20);
+
+					for (w = 0 ; w < process->T[i] ; w++) {
+						WAIT;
+					}
+
+					exit (0);
+				}
+				else if (procInfo[i].pid > 0) {
+					printf ("%s %d\n", process->N[i], (int) procInfo[i].pid);
+					procInfo[i].state = READY;
+				}
+				else {
+					fprintf (stderr, "Error fork new process\n");
+
+					exit (1);
+				}
+			}
+		}
+
+		WAIT;
+		t += 1;
+	}
+
+	pthread_join (tid, NULL);
+
+	free (procInfo);
 }
