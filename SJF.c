@@ -50,6 +50,11 @@ void SJF (Process *process) {
 	pid_t *pid;
 	int w, next;
 
+	time_t st_s, ed_s;
+	long st_ns, ed_ns;
+
+	char msg[1024];
+
 	t = 0;
 	finish = (int*) calloc (process->numOfProc, sizeof (int));
 	pid = (pid_t*) malloc (process->numOfProc * sizeof (pid_t));
@@ -69,11 +74,15 @@ void SJF (Process *process) {
 				exit (0);
 			}
 			else if (pid[next] > 0) {
-				printf ("%s starts by time %u\n", process->N[next], t);
+				printf ("%s %d\n", process->N[next], (int) pid[next]);
+				gettime (&st_s, &st_ns);
 				waitpid (pid[next], NULL, 0);
-				t += process->T[next];
-				printf ("%s finishes by time %u\n", process->N[next], t);
+				gettime (&ed_s, &ed_ns);
 
+				snprintf (msg, sizeof (msg), "%d %u.%ld %u.%ld\n", (int) pid[next], (unsigned int) st_s, st_ns, (unsigned int) ed_s, ed_ns);
+				printkk (msg);
+
+				t += process->T[next];
 				finish[next] = 1;
 			}
 			else {
