@@ -64,7 +64,7 @@ int main (int argc, char *argv[]){
 	cpu_set_t cmask;
 	CPU_ZERO(&cmask);
 	CPU_SET(0, &cmask);
-	sched_setaffinity(0, sizeof(cpu_set_t), &cmask);
+	sched_setaffinity(getpid(), sizeof(cpu_set_t), &cmask);
 	
 	if(!strcmp(S, "FIFO")){
 		FIFO(proc);
