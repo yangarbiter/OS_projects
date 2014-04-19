@@ -45,10 +45,6 @@ int main (int argc, char *argv[]){
 	
 	if(!strcmp(S, "FIFO")){
 		FIFO(proc);
-	}else if(!strcmp(S, "RR")){
-		RR(proc);
-	}else{
-		SJF(proc);
 	}
 
 	return 0;

@@ -5,7 +5,9 @@
 #include<sys/wait.h>
 
 #define RUN(time) \
-		{ volatile unsigned long i; for(i=0;i<1000000UL*time;i++); }
+		{ volatile unsigned long j; for(j=0;j<time;j++){ \
+		{ volatile unsigned long i; for(i=0;i<1000000UL;i++); } \
+													   }}
 
 void FIFO(Process* process){
 	int i;
@@ -15,15 +17,16 @@ void FIFO(Process* process){
 	for(i=0; i<process->numOfProc; i++){
 		if(now-(process->R[i]) > 0)
 			RUN(now-(process->R[i]));
-		now = process->R[i];
+		now = process->R[i] + process->T[i];
 		pid[i] = fork();
 		if(pid[i] < 0){
 			printf("fork fail\n");
 		}else if(pid[i] == 0){
 			RUN(process->T[i]);
+			return;
 		}else{
 			wait(NULL);
-			printf("%s %d", process->N[i], pid[i]);
+			printf("%s %d\n", process->N[i], pid[i]);
 		}
 	}
 	
