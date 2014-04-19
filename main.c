@@ -13,7 +13,7 @@ int main (int argc, char *argv[]){
 		proc->proces[i] = malloc(sizeof(int) * 3);
 	}
 	
-	if(!strcmp(S, "FIFO"){
+	if(!strcmp(S, "FIFO")){
 		FIFO(proc);
 	}else if(!strcmp(S, "RR")){
 		RR(proc);
