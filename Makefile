@@ -1,5 +1,14 @@
-all: main.c util.h RR.o
-	gcc -std=c99 -Wall RR.o main.c -o main
+CC = gcc
+CFLAG = -Wall -std=c99
 
-RR.o: RR.c RR.h
-	gcc -std=c99 -lpthread -Wall -c RR.c
+all: main.c FIFO.o RR.o SJF.o syscall.o
+	$(CC) $(CFLAG) $^ -o scheduler
+
+%.o: $*.c
+	$(CC) $(CFLAG) -c $*.c -o $*.o
+
+clean:
+	rm -f ./*.o
+
+test: main.c util.h
+	$(CC) $(CFLAG) main.c -o main
