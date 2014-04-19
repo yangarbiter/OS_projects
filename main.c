@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "util.h"
+#include "RR.h"
 
 void swapCharPointer (char **c1, char **c2) {
 	char *tmp;
@@ -53,3 +54,7 @@ int main (int argc, char *argv[]){
 
 	return 0;
 }
+
+
+void FIFO(Process* process){}
+void SJF(Process* process){}
