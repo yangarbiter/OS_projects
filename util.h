@@ -4,7 +4,8 @@
 
 typedef struct _Process{
 	int numOfProc;
-	int **procs;
+	char **N;
+	unsigned int *R, *T;
 }Process;
 
 void FIFO(Process* process);
