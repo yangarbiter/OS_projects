@@ -12,7 +12,7 @@
 		{ volatile unsigned long j; for(j=0;j<time;j++){ \
 		{ volatile unsigned long i; for(i=0;i<1000000UL;i++); }}}
 
-static int current;
+volatile sig_atomic_t current;
 static time_t s_start, s_end;
 static long ns_start, ns_end;
 static pid_t* pid; 
@@ -36,11 +36,17 @@ void sigchld_handler(int param){
 void FIFO(Process* process){
 	int i;
 	unsigned long now=0;
-	nice(-20);
+	struct sigaction act;
+	nice(-19);
+
+	act.sa_handler = sigchld_handler;
+	sigemptyset (&act.sa_mask);
+	sigaddset (&act.sa_mask, SIGCHLD);
+	act.sa_flags = 0;
+	sigaction (SIGCHLD, &act, NULL);
 
 	pid = (pid_t*)malloc(sizeof(pid_t) * process->numOfProc);
 
-	signal(SIGCHLD, sigchld_handler);
 	current = 0;
 
 	for(i=0; i<process->numOfProc; i++){
@@ -54,12 +60,10 @@ void FIFO(Process* process){
 		if(pid[i] < 0){
 			printf("fork fail\n");
 		}else if(pid[i] == 0){
-			//signal(SIGCHLD, NULL);
-
-			if(i!=0)nice(20);
+			if(i!=0)nice(19);
 
 			RUN(process->T[i]);
-			printf("%d\n", getpid());
+			printf("pid %d ended\n", getpid());
 			kill(getppid(), SIGCHLD);
 			exit(0);
 		}else{
