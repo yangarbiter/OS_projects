@@ -10,9 +10,6 @@
 #include <pthread.h>
 #include "util.h"
 
-#define WAIT \
-	{volatile unsigned int i; for (i = 0 ; i < 1000000UL ; i++) ;}
-
 typedef enum {
 	INITIAL, READY, RUNNING, TERMINATE
 } State;
@@ -24,6 +21,15 @@ typedef struct {
 	long st_ns, ed_ns;
 } ProcessAccounting;
 ProcessAccounting *procInfo;
+
+void WAIT (unsigned int time) {
+	unsigned int i;
+	volatile int j;
+
+	for (i = 0 ; i < time ; i++) {
+		for (j = 0 ; j < 1000000 ; j++) ;
+	}
+}
 
 sigset_t oldmask;
 
@@ -149,11 +155,7 @@ void SJF (Process *process) {
 			if (procInfo[i].state == INITIAL && process->R[i] <= t) {
 				procInfo[i].pid = fork ();
 				if (procInfo[i].pid == 0) {
-					int w;
-
-					for (w = 0 ; w < process->T[i] ; w++) {
-						WAIT;
-					}
+					WAIT (process->T[i]);
 
 					exit (0);
 				}
@@ -179,7 +181,7 @@ void SJF (Process *process) {
 			}
 		}
 
-		WAIT;
+		WAIT (1);
 		t += 1;
 	}
 
