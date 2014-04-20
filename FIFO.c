@@ -1,8 +1,11 @@
+#define _POSIX_SOURCE
+#define _XOPEN_SOURCE
 #include"util.h"
 #include<unistd.h>
 #include<stdio.h>
 #include<stdlib.h>
 #include<sys/wait.h>
+#include<sys/types.h>
 #include<signal.h>
 
 #define RUN(time) \
@@ -33,7 +36,7 @@ void sigchld_handler(int param){
 void FIFO(Process* process){
 	int i;
 	unsigned long now=0;
-	nice(-19);
+	nice(-20);
 
 	pid = (pid_t*)malloc(sizeof(pid_t) * process->numOfProc);
 
@@ -54,7 +57,6 @@ void FIFO(Process* process){
 			//signal(SIGCHLD, NULL);
 
 			if(i!=0)nice(20);
-			else nice(-19);
 
 			RUN(process->T[i]);
 			printf("%d\n", getpid());
