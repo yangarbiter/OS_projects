@@ -41,6 +41,7 @@ void* handleProcess (void *arg) {
 	long ns;
 
 	int complete = 0;
+	int endFromRUNNING;
 
 	struct sigaction act;
 
@@ -67,9 +68,23 @@ void* handleProcess (void *arg) {
 			}
 		}
 
-		procInfo[p].state = TERMINATE;
-		procInfo[p].ed_s = s;
-		procInfo[p].ed_ns = ns;
+		switch (procInfo[p].state) {
+			case RUNNING :
+				procInfo[p].state = TERMINATE;
+				procInfo[p].ed_s = s;
+				procInfo[p].ed_ns = ns;
+				endFromRUNNING = 1;
+				break;
+			case READY : /* finished without being RUNNING */
+				procInfo[p].state = TERMINATE;
+				procInfo[p].st_s = procInfo[p].ed_s = s;
+				procInfo[p].st_ns = procInfo[p].ed_ns = ns;
+				endFromRUNNING = 0;
+				break;
+			default :
+				endFromRUNNING = 0;
+				break;
+		}
 
 		snprintf (msg, sizeof (msg), "%d %u.%ld %u.%ld\n",
 				  (int) procInfo[p].pid,
@@ -77,22 +92,23 @@ void* handleProcess (void *arg) {
 				  (unsigned int) procInfo[p].ed_s, procInfo[p].ed_ns);
 		printkk (msg);
 
-		p = -1;
-		for (i = 0 ; i < process->numOfProc ; i++) {
-			if (procInfo[i].state == READY) {
-				if (p == -1) {
-					p = i;
-				}
-				else if (process->T[i] < process->T[p]) {
-					p = i;
+		if (endFromRUNNING) {
+			p = -1;
+			for (i = 0 ; i < process->numOfProc ; i++) {
+				if (procInfo[i].state == READY) {
+					if (p == -1) {
+						p = i;
+					}
+					else if (process->T[i] < process->T[p]) {
+						p = i;
+					}
 				}
 			}
-		}
-		if (p != -1) {
-			gettime (&procInfo[p].st_s, &procInfo[p].st_ns);
-			kill (procInfo[p].pid, SIGUSR1);
-			procInfo[p].state = RUNNING;
-			printf ("pick %s\n", process->N[p]);
+			if (p != -1) {
+				gettime (&procInfo[p].st_s, &procInfo[p].st_ns);
+				kill (procInfo[p].pid, SIGUSR1);
+				procInfo[p].state = RUNNING;
+			}
 		}
 
 		pick--;
@@ -142,18 +158,16 @@ void SJF (Process *process) {
 					exit (0);
 				}
 				else if (procInfo[i].pid > 0) {
-					printf ("%s %d\n", process->N[i], (int) procInfo[i].pid);
 					if (first == 1) {
 						gettime (&procInfo[i].st_s, &procInfo[i].st_ns);
-						kill (procInfo[i].pid, SIGUSR1);
 						procInfo[i].state = RUNNING;
 						first = 0;
-						printf ("pick %s\n", process->N[i]);
 					}
 					else {
 						kill (procInfo[i].pid, SIGUSR2);
 						procInfo[i].state = READY;
 					}
+					printf ("%s %d\n", process->N[i], (int) procInfo[i].pid);
 
 					start++;
 				}
