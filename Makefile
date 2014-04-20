@@ -1,11 +1,11 @@
 CC = gcc
-CFLAG = -Wall -std=c99 -pthread -g
+CFLAG = -Wall -std=c99
 OBJS = FIFO.o RR.o SJF.o syscall.o
 
 all: main.c $(OBJS)
-	$(CC) $(CFLAG) $^ -o scheduler
+	$(CC) $(CFLAG) -pthread $^ -o scheduler
 
-$(OBJS): %.o: %.c
+%.o: %.c
 	$(CC) $(CFLAG) -c $*.c -o $*.o 
 
 clean:
