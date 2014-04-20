@@ -55,7 +55,7 @@ void FIFO(Process* process){
 		now = process->R[i];
 
 		pid[i] = fork();
-		if(i==0)gettime(&s_end, &ns_end);
+		if(i==0)gettime(&s_start, &ns_start);
 
 		if(pid[i] < 0){
 			printf("fork fail\n");
