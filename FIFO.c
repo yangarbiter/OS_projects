@@ -63,7 +63,7 @@ void FIFO(Process* process){
 			if(i!=0)nice(19);
 
 			RUN(process->T[i]);
-			printf("pid %d ended\n", getpid());
+			//printf("pid %d ended\n", getpid());
 			kill(getppid(), SIGCHLD);
 			exit(0);
 		}else{
