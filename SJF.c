@@ -1,5 +1,6 @@
 #define _POSIX_SOURCE
 #define _XOPEN_SOURCE
+#define _POSIX_C_SOURCE 199506L
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -24,12 +25,12 @@ typedef struct {
 } ProcessAccounting;
 ProcessAccounting *procInfo;
 
+sigset_t oldmask;
+
 volatile sig_atomic_t pick;
 
 void SIGCHLDHandler (int param) {
 	pick++;
-	puts ("catch SIGCHLD!!");
-	printf ("%d\n", pick);
 }
 
 void* handleProcess (void *arg) {
@@ -41,15 +42,22 @@ void* handleProcess (void *arg) {
 
 	int complete = 0;
 
+	struct sigaction act;
+
 	char msg[1024];
 
 	int i;
 
-	signal (SIGCHLD, SIGCHLDHandler);
+	act.sa_handler = SIGCHLDHandler;
+	sigemptyset (&act.sa_mask);
+	sigaddset (&act.sa_mask, SIGCHLD);
+	act.sa_flags = 0;
+	sigaction (SIGCHLD, &act, NULL);
+
+	pthread_sigmask (SIG_SETMASK, &oldmask, NULL);
 
 	while (complete < process->numOfProc) {
 		while (pick == 0) ;
-		printf ("pick = %d\n", pick);
 		gettime (&s, &ns);
 		pid = wait (NULL);
 
@@ -84,6 +92,7 @@ void* handleProcess (void *arg) {
 			gettime (&procInfo[p].st_s, &procInfo[p].st_ns);
 			kill (procInfo[p].pid, SIGUSR1);
 			procInfo[p].state = RUNNING;
+			printf ("pick %s\n", process->N[p]);
 		}
 
 		pick--;
@@ -102,6 +111,13 @@ void SJF (Process *process) {
 
 	pthread_t tid;
 
+	sigset_t sigmask;
+
+	sigemptyset (&sigmask);
+	sigaddset (&sigmask, SIGCHLD);
+
+	sigprocmask (SIG_BLOCK, &sigmask, &oldmask);
+
 	pthread_create (&tid, NULL, handleProcess, process);
 
 	t = 0;
@@ -119,8 +135,6 @@ void SJF (Process *process) {
 				if (procInfo[i].pid == 0) {
 					int w;
 
-					nice (20);
-
 					for (w = 0 ; w < process->T[i] ; w++) {
 						WAIT;
 					}
@@ -134,8 +148,10 @@ void SJF (Process *process) {
 						kill (procInfo[i].pid, SIGUSR1);
 						procInfo[i].state = RUNNING;
 						first = 0;
+						printf ("pick %s\n", process->N[i]);
 					}
 					else {
+						kill (procInfo[i].pid, SIGUSR2);
 						procInfo[i].state = READY;
 					}
 
