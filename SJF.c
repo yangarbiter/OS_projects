@@ -24,34 +24,32 @@ typedef struct {
 } ProcessAccounting;
 ProcessAccounting *procInfo;
 
-sig_atomic_t pick, complete;
+volatile sig_atomic_t pick;
 
 void SIGCHLDHandler (int param) {
-	pick = 1;
-	complete++;
+	pick++;
+	puts ("catch SIGCHLD!!");
+	printf ("%d\n", pick);
 }
 
-typedef struct {
-	Process *process;
-} HandleProcessArgs;
-
 void* handleProcess (void *arg) {
-	HandleProcessArgs *_arg = (HandleProcessArgs*) arg;
-	const Process *process = _arg->process;
+	const Process *process = (const Process*) arg;
 	pid_t pid;
 	int p;
 	time_t s;
 	long ns;
 
+	int complete = 0;
+
 	char msg[1024];
 
 	int i;
 
-	pick = 0;
 	signal (SIGCHLD, SIGCHLDHandler);
 
 	while (complete < process->numOfProc) {
 		while (pick == 0) ;
+		printf ("pick = %d\n", pick);
 		gettime (&s, &ns);
 		pid = wait (NULL);
 
@@ -88,7 +86,8 @@ void* handleProcess (void *arg) {
 			procInfo[p].state = RUNNING;
 		}
 
-		pick = 0;
+		pick--;
+		complete++;
 	}
 
 	return NULL;
@@ -96,11 +95,12 @@ void* handleProcess (void *arg) {
 
 void SJF (Process *process) {
 	unsigned int t;
+	int first = 1;
 	int i;
+	
+	int start = 0;
 
 	pthread_t tid;
-
-	complete = 0;
 
 	pthread_create (&tid, NULL, handleProcess, process);
 
@@ -112,7 +112,7 @@ void SJF (Process *process) {
 		procInfo[i].st_s  = procInfo[i].ed_s  = 0;
 		procInfo[i].st_ns = procInfo[i].ed_ns = 0;
 	}
-	while (complete < process->numOfProc) {
+	while (start < process->numOfProc) {
 		for (i = 0 ; i < process->numOfProc ; i++) {
 			if (procInfo[i].state == INITIAL && process->R[i] <= t) {
 				procInfo[i].pid = fork ();
@@ -129,7 +129,17 @@ void SJF (Process *process) {
 				}
 				else if (procInfo[i].pid > 0) {
 					printf ("%s %d\n", process->N[i], (int) procInfo[i].pid);
-					procInfo[i].state = READY;
+					if (first == 1) {
+						gettime (&procInfo[i].st_s, &procInfo[i].st_ns);
+						kill (procInfo[i].pid, SIGUSR1);
+						procInfo[i].state = RUNNING;
+						first = 0;
+					}
+					else {
+						procInfo[i].state = READY;
+					}
+
+					start++;
 				}
 				else {
 					fprintf (stderr, "Error fork new process\n");

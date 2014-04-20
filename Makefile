@@ -1,5 +1,5 @@
 CC = gcc
-CFLAG = -Wall -std=c99 -pthread
+CFLAG = -Wall -std=c99 -pthread -g
 OBJS = FIFO.o RR.o SJF.o syscall.o
 
 all: main.c $(OBJS)
