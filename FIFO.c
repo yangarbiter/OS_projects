@@ -40,8 +40,8 @@ void FIFO(Process* process){
 	current = 0;
 
 	for(i=0; i<process->numOfProc; i++){
-		if(now-(process->R[i]) > 0)
-			RUN(now-(process->R[i]));
+		if((process->R[i])-now > 0)
+			RUN((process->R[i])-now);
 		now = process->R[i];
 
 		pid[i] = fork();
