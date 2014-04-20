@@ -23,7 +23,7 @@ void swapUnsignedInt (unsigned int *c1, unsigned int *c2) {
 
 void sigusr1_handler (int param)
 {
-	nice(-39);
+	nice(-19);
 }
 
 void sigusr2_handler (int param)
