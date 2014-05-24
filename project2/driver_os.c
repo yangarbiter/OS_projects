@@ -14,11 +14,11 @@ static ssize_t my_write(struct file *filp, const char __user *buff, size_t count
 static long my_ioctl(struct file *file, unsigned int ioctl_num, unsigned long ioctl_param);
 static int my_open(struct inode *inode, struct file *file);
 static int my_close(struct inode *inode, struct file *file);
-static ssize_t miniex_recv(struct socket *csock, char *buf, size_t size);
-static ssize_t miniex_send(struct socket *csock, char *buf, size_t size);
-static void miniex_work_handler(struct work_struct *work);
+static ssize_t driver_os_recv(struct socket *csock, char *buf, size_t size);
+static ssize_t driver_os_send(struct socket *csock, char *buf, size_t size);
+static void driver_os_work_handler(struct work_struct *work);
 
-static struct file_operations miniex_ops = {
+static struct file_operations driver_os_ops = {
 	.owner = THIS_MODULE,
 	.llseek = my_llseek,
 	.read = my_read,
@@ -29,11 +29,11 @@ static struct file_operations miniex_ops = {
 };
 
 static dev_t devno;
-static struct class *miniex_cl;
-static struct cdev miniex_dev;
+static struct class *driver_os_cl;
+static struct cdev driver_os_dev;
 static struct workqueue_struct *wq;
-DECLARE_WORK(miniex_work, miniex_work_handler);
-DECLARE_WAIT_QUEUE_HEAD(miniex_wait);
+DECLARE_WORK(driver_os_work, miniex_work_handler);
+DECLARE_WAIT_QUEUE_HEAD(driver_os_wait);
 static struct socket *ssock;
 static char sockbuf[4096];
 static int datalen;
@@ -42,49 +42,49 @@ static int __init initialize(void)
 {
 	int ret;
 
-	if((ret = alloc_chrdev_region(&devno, 0, 1, "miniex")) < 0){
+	if((ret = alloc_chrdev_region(&devno, 0, 1, "driver_os")) < 0){
 		printk(KERN_ERR "alloc_chrdev_region returned %d\n", ret);
 		return ret;
 	}
 
-	if((miniex_cl = class_create(THIS_MODULE, "chardrv")) == NULL){
+	if((driver_os_cl = class_create(THIS_MODULE, "chardrv")) == NULL){
 		printk(KERN_ERR "class_create returned NULL\n");
 		ret = -ENOMEM;
 		goto class_create_failed;
 	}
 
-	if(device_create(miniex_cl, NULL, devno, NULL, "miniex") == NULL){
+	if(device_create(driver_os_cl, NULL, devno, NULL, "miniex") == NULL){
 		printk(KERN_ERR "device_create returned NULL\n");
 		ret = -ENOMEM;
 		goto device_create_failed;
 	}
 
-	cdev_init(&miniex_dev, &miniex_ops);
-	miniex_dev.owner = THIS_MODULE;
+	cdev_init(&driver_os_dev, &miniex_ops);
+	driver_os_dev.owner = THIS_MODULE;
 
-	if((ret = cdev_add(&miniex_dev, devno, 1)) < 0){
+	if((ret = cdev_add(&driver_os_dev, devno, 1)) < 0){
 		printk(KERN_ERR "cdev_add returned %d\n", ret);
 		goto cdev_add_failed;
 	}
 
-	if((wq = create_workqueue("miniex_wq")) == NULL){
+	if((wq = create_workqueue("driver_os_wq")) == NULL){
 		printk(KERN_ERR "create_workqueue returned NULL\n");
 		ret = -ENOMEM;
 		goto create_workqueue_failed;
 	}
 
-	queue_work(wq, &miniex_work);
+	queue_work(wq, &driver_os_work);
 
-	printk(KERN_INFO "miniex initialized!\n");
+	printk(KERN_INFO "driver_os initialized!\n");
 
 	return 0;
 
 create_workqueue_failed:
-	cdev_del(&miniex_dev);
+	cdev_del(&driver_os_dev);
 cdev_add_failed:
-	device_destroy(miniex_cl, devno);
+	device_destroy(driver_os_cl, devno);
 device_create_failed:
-	class_destroy(miniex_cl);
+	class_destroy(driver_os_cl);
 class_create_failed:
 	unregister_chrdev_region(devno, 1);
 
@@ -99,18 +99,18 @@ static void __exit exiting(void)
 
 	if(wq != NULL)	destroy_workqueue(wq);
 
-	cdev_del(&miniex_dev);
-	device_destroy(miniex_cl, devno);
-	class_destroy(miniex_cl);
+	cdev_del(&driver_os_dev);
+	device_destroy(driver_os_cl, devno);
+	class_destroy(driver_os_cl);
 	unregister_chrdev_region(devno, 1);
 
-	printk(KERN_INFO "miniex removed!\n");
+	printk(KERN_INFO "driver_os removed!\n");
 }
 
 module_init(initialize);
 module_exit(exiting);
 
-static ssize_t miniex_recv(struct socket *csock, char *buf, size_t size)
+static ssize_t driver_os_recv(struct socket *csock, char *buf, size_t size)
 {
 	struct msghdr msg;
 	struct iovec iov;
@@ -136,7 +136,7 @@ static ssize_t miniex_recv(struct socket *csock, char *buf, size_t size)
 	return ret;
 }
 
-static ssize_t miniex_send(struct socket *csock, char *buf, size_t size)
+static ssize_t driver_os_send(struct socket *csock, char *buf, size_t size)
 {
 	struct msghdr msg;
 	struct iovec iov;
@@ -163,7 +163,7 @@ static ssize_t miniex_send(struct socket *csock, char *buf, size_t size)
 }
 
 
-static void miniex_work_handler(struct work_struct *work)
+static void driver_os_work_handler(struct work_struct *work)
 {
 	int ret;
 	struct sockaddr_in saddr;
@@ -214,14 +214,14 @@ static void miniex_work_handler(struct work_struct *work)
 
 		// got a connection
 
-		ret = miniex_recv(csock, sockbuf, 4096);
+		ret = driver_os_recv(csock, sockbuf, 4096);
 		
 		if(ret > 0){
 			sockbuf[ret] = 0;
 			printk(KERN_INFO "recv: %s", sockbuf);
-			miniex_send(csock, sockbuf, ret);	// echo
+			driver_os_send(csock, sockbuf, ret);	// echo
 			datalen = ret;
-			wake_up_interruptible(&miniex_wait);
+			wake_up_interruptible(&driver_os_wait);
 		}
 
 		csock->ops->shutdown(csock, SHUT_RDWR);
@@ -265,7 +265,7 @@ static ssize_t my_read(struct file *filp, char __user *buff, size_t count, loff_
 {
 	int rlen;
 
-	if(wait_event_interruptible(miniex_wait, datalen > 0) != 0)	return -ERESTARTSYS;
+	if(wait_event_interruptible(driver_os_wait, datalen > 0) != 0)	return -ERESTARTSYS;
 
 	rlen = (count < datalen)?count:datalen;
 
