@@ -3,9 +3,9 @@
 #include<string.h>
 #include<fcntl.h>
 
-const char* DEV_PATH = "/dev/rs232_os"
+const char* DEV_PATH = "/dev/rs232_os";
 
-int main(int argc, char argv[])
+int main(int argc, char* argv[])
 {
 	int dev_fd, f_fd;
 	if(argc != 3){
@@ -14,6 +14,8 @@ int main(int argc, char argv[])
 
 	dev_fd = open(DEV_PATH, O_WRONLY);
 	open(argv[1], O_RDONLY);
+	
+	ioctl(dev_fd, 1, NULL);  //master
 
 	if(strcmp(argv[2], "fcntl") == 0){
 		int s;
@@ -50,7 +52,7 @@ int main(int argc, char argv[])
 
 		munmap(buf, mmap_size);*/
 	}
-	fclose(f_fd);
+	close(f_fd);
 	close(dev_fd);
 
 	return 0;

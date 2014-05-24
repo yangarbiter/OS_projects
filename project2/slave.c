@@ -1,11 +1,12 @@
 #include<stdio.h>
 #include<unistd.h>
 #include<string.h>
+#include<fcntl.h>
 #include<sys/ioctl.h>
 
-const char* DEV_PATH = "/dev/rs232_os
+const char* DEV_PATH = "/dev/rs232_os";
 
-int main(int argc, char argv[])
+int main(int argc, char* argv[])
 {
 	int dev_fd;
 
@@ -15,10 +16,10 @@ int main(int argc, char argv[])
 
 	dev_fd = open(DEV_PATH, O_RDONLY);
 
-	ioctl(dev_fd, 0, argv[1]);  //bulid connection
+	ioctl(dev_fd, 0, argv[1]);  //slave pass ip and bulid connection
 
 	if(strcmp(argv[2], "fcntl") == 0){
-		int s, f_fd = open(argv[1], "w");
+		int s, f_fd = open(argv[1], O_WRONLY);
 		char buf[512];
 
 		while(s = read(dev_fd, buf, 512) != 0){
@@ -31,12 +32,12 @@ int main(int argc, char argv[])
 				s -= ret;
 			}
 		}
-		fclose(f_fd);
+		close(f_fd);
 	}else if(strcmp(argv[2], "mmap") == 0){
 
 	}
 
-	fclose(dev_fd);
+	close(dev_fd);
 
 	return 0;
 	
