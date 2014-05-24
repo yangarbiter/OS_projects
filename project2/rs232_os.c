@@ -14,17 +14,10 @@ static ssize_t my_write(struct file *filp, const char __user *buff, size_t count
 static long my_ioctl(struct file *file, unsigned int ioctl_num, unsigned long ioctl_param);
 static int my_open(struct inode *inode, struct file *file);
 static int my_close(struct inode *inode, struct file *file);
-<<<<<<< Updated upstream:project2/rs232_os.c
 static ssize_t driver_os_recv(struct socket *csock, char *buf, size_t size);
 static ssize_t driver_os_send(struct socket *csock, char *buf, size_t size);
 static void driver_os_work_handler(struct work_struct *work);
-=======
-static ssize_t miniex_recv(struct socket *csock, char *buf, size_t size);
-static ssize_t miniex_send(struct socket *csock, char *buf, size_t size);
-static void miniex_work_handler(struct work_struct *work);
-static *void my_mmap(struct file * filp, struct vm_area_struct *vma);
-
->>>>>>> Stashed changes:project2/driver_os.c
+// static *void my_mmap(struct file * filp, struct vm_area_struct *vma);
 
 static struct file_operations driver_os_ops = {
 	.owner = THIS_MODULE,
@@ -34,7 +27,7 @@ static struct file_operations driver_os_ops = {
 	.unlocked_ioctl = my_ioctl,
 	.open = my_open,
 	.release = my_close,
-	.mmap = my_mmap
+	// .mmap = my_mmap
 };
 
 static dev_t devno;
@@ -291,13 +284,13 @@ static ssize_t my_write(struct file *filp, const char __user *buff, size_t count
 }
 
 
-static *void my_mmap(struct file * filp, struct vm_area_struct *vma)
-{
-	if (remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
-				vma->vm_end - vma->vm_start,
-				vma->vm_page_prot))
-		return -EAGAIN;
-	vma->vm_private_data = filp->private_data;
-	vma->vm_op = &simple_remap_vm_ops;
-
-}
+// static *void my_mmap(struct file * filp, struct vm_area_struct *vma)
+// {
+// 	if (remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
+// 				vma->vm_end - vma->vm_start,
+// 				vma->vm_page_prot))
+// 		return -EAGAIN;
+// 	vma->vm_private_data = filp->private_data;
+// 	vma->vm_op = &simple_remap_vm_ops;
+// 
+// }
