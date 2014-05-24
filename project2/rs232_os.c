@@ -32,7 +32,7 @@ static dev_t devno;
 static struct class *driver_os_cl;
 static struct cdev driver_os_dev;
 static struct workqueue_struct *wq;
-DECLARE_WORK(driver_os_work, miniex_work_handler);
+DECLARE_WORK(driver_os_work, driver_os_work_handler);
 DECLARE_WAIT_QUEUE_HEAD(driver_os_wait);
 static struct socket *ssock;
 static char sockbuf[4096];
@@ -53,13 +53,13 @@ static int __init initialize(void)
 		goto class_create_failed;
 	}
 
-	if(device_create(driver_os_cl, NULL, devno, NULL, "miniex") == NULL){
+	if(device_create(driver_os_cl, NULL, devno, NULL, "driver_os") == NULL){
 		printk(KERN_ERR "device_create returned NULL\n");
 		ret = -ENOMEM;
 		goto device_create_failed;
 	}
 
-	cdev_init(&driver_os_dev, &miniex_ops);
+	cdev_init(&driver_os_dev, &driver_os_ops);
 	driver_os_dev.owner = THIS_MODULE;
 
 	if((ret = cdev_add(&driver_os_dev, devno, 1)) < 0){
