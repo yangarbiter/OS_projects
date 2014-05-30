@@ -1,0 +1,5 @@
+*.mod
+*.mod.c
+master
+slave
+modules.order
