@@ -4,7 +4,7 @@
 #include<fcntl.h>
 #include<sys/ioctl.h>
 
-const char* DEV_PATH = "/dev/rs232_os";
+const char* DEV_PATH = "/dev/rs232_os_slave";
 
 int main(int argc, char* argv[])
 {
