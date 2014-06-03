@@ -1,4 +1,4 @@
-MODULENAME = rs232_os
+MODULENAME = rs232_os_slave rs232_os_master
 
 obj-m += $(MODULENAME).o
 CFLAGS_$(MODULENAME) := -Wall
