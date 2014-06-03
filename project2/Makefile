@@ -1,7 +1,6 @@
-MODULENAME = rs232_os_slave rs232_os_master
-
-obj-m += $(MODULENAME).o
-CFLAGS_$(MODULENAME) := -Wall
+obj-m += rs232_os_slave.o rs232_os_master.o
+CFLAGS_rs232_os_slave := -Wall
+CFLAGS_rs232_os_master := -Wall
 
 all: module
 	gcc master.c -o master
