@@ -3,7 +3,7 @@
 #include<string.h>
 #include<fcntl.h>
 
-const char* DEV_PATH = "/dev/rs232_os";
+const char* DEV_PATH = "/dev/rs232_os_master";
 
 int main(int argc, char* argv[])
 {
@@ -15,13 +15,13 @@ int main(int argc, char* argv[])
 	dev_fd = open(DEV_PATH, O_WRONLY);
 	open(argv[1], O_RDONLY);
 	
-	ioctl(dev_fd, 1, NULL);  //master
+	/* ioctl(dev_fd, 1, NULL);  //master */
 
 	if(strcmp(argv[2], "fcntl") == 0){
 		int s;
 		char buf[512];
 
-		while(s = read(f_fd, buf, 512) != 0){
+		while((s = read(f_fd, buf, 512)) != 0){
 			if(s == -1){
 			}
 			while(s != 0){
