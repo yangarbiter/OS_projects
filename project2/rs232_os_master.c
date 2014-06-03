@@ -15,7 +15,7 @@ static ssize_t my_write(struct file *filp, const char __user *buff, size_t count
 static long my_ioctl(struct file *file, unsigned int ioctl_num, unsigned long ioctl_param);
 static int my_open(struct inode *inode, struct file *file);
 static int my_close(struct inode *inode, struct file *file);
-static ssize_t driver_os_recv(struct socket *csock, char *buf, size_t size);
+/* static ssize_t driver_os_recv(struct socket *csock, char *buf, size_t size); */
 static ssize_t driver_os_send(struct socket *csock, char *buf, size_t size);
 static void driver_os_work_handler(struct work_struct *work);
 // static *void my_mmap(struct file * filp, struct vm_area_struct *vma);
@@ -41,13 +41,15 @@ static struct socket *ssock;
 static char sockbuf[4096];
 volatile int flag; /* 1 for unread */
 static int datalen;
+static int sockbuf_get;
 
 static int __init initialize(void)
 {
 	int ret;
+	sockbuf_get = 0;
 
 	// KERN_ERR => <3> 代表發生錯誤
-	if((ret = alloc_chrdev_region(&devno, 0, 1, "driver_os")) < 0){
+	if((ret = alloc_chrdev_region(&devno, 0, 1, "driver_os_master")) < 0){
 		printk(KERN_ERR "alloc_chrdev_region returned %d\n", ret);
 		return ret;
 	}
@@ -59,7 +61,7 @@ static int __init initialize(void)
 	}
 
 	// 以driver_os_cl這個類創建/dev/driver_os檔案
-	if(device_create(driver_os_cl, NULL, devno, NULL, "driver_os") == NULL){
+	if(device_create(driver_os_cl, NULL, devno, NULL, "driver_os_master") == NULL){
 		printk(KERN_ERR "device_create returned NULL\n");
 		ret = -ENOMEM;
 		goto device_create_failed;
@@ -82,6 +84,7 @@ static int __init initialize(void)
 	queue_work(wq, &driver_os_work);
 
 	printk(KERN_INFO "driver_os initialized!\n");
+
 
 	return 0;
 
@@ -116,31 +119,31 @@ static void __exit exiting(void)
 module_init(initialize);
 module_exit(exiting);
 
-static ssize_t driver_os_recv(struct socket *csock, char *buf, size_t size)
-{
-	struct msghdr msg;
-	struct iovec iov;
-	mm_segment_t oldfs;
-	int ret;
-
-	iov.iov_base = (void *)buf;
-	iov.iov_len = (__kernel_size_t)size;
-
-	msg.msg_name = NULL;
-	msg.msg_namelen = 0;
-	msg.msg_iov = &iov;
-	msg.msg_iovlen = 1;
-	msg.msg_control = NULL;
-	msg.msg_controllen = 0;
-	msg.msg_flags = 0;
-
-	oldfs = get_fs();
-	set_fs(KERNEL_DS);
-	ret = sock_recvmsg(csock, &msg, size, 0);
-	set_fs(oldfs);
-
-	return ret;
-}
+/* static ssize_t driver_os_recv(struct socket *csock, char *buf, size_t size) */
+/* { */
+/* 	struct msghdr msg; */
+/* 	struct iovec iov; */
+/* 	mm_segment_t oldfs; */
+/* 	int ret; */
+/*  */
+/* 	iov.iov_base = (void *)buf; */
+/* 	iov.iov_len = (__kernel_size_t)size; */
+/*  */
+/* 	msg.msg_name = NULL; */
+/* 	msg.msg_namelen = 0; */
+/* 	msg.msg_iov = &iov; */
+/* 	msg.msg_iovlen = 1; */
+/* 	msg.msg_control = NULL; */
+/* 	msg.msg_controllen = 0; */
+/* 	msg.msg_flags = 0; */
+/*  */
+/* 	oldfs = get_fs(); */
+/* 	set_fs(KERNEL_DS); */
+/* 	ret = sock_recvmsg(csock, &msg, size, 0); */
+/* 	set_fs(oldfs); */
+/*  */
+/* 	return ret; */
+/* } */
 
 static ssize_t driver_os_send(struct socket *csock, char *buf, size_t size)
 {
@@ -218,10 +221,13 @@ static void driver_os_work_handler(struct work_struct *work)
 			break;
 		}
 
-		// got a connection
+		// got a connection, csock是要傳出去的socket
 
 		while (1) {
-			ret = driver_os_recv(csock, sockbuf, 4096);
+			wait_event_interruptible(driver_os_wait, sockbuf_get);
+			sockbuf_get = 0;
+
+			ret = driver_os_send(csock, sockbuf, 4096);
 			
 			if(ret > 0){
 				sockbuf[ret] = 0;
@@ -248,18 +254,22 @@ static void driver_os_work_handler(struct work_struct *work)
 
 static long my_ioctl(struct file *file,unsigned int ioctl_num, unsigned long ioctl_param)
 {
-	long ret = -EINVAL;
-	char ip[16];
+	// master 無需ioctl
+	
 
-	switch(ioctl_num){
-		case 0 :
-			copy_from_user (ip, (void*) ioctl_param, 16);
-			break;
-		default:
-			break;
-	}
 
-	return ret;
+	/* long ret = -EINVAL; */
+	/* char ip[16]; */
+
+	/* switch(ioctl_num){ */
+	/* 	case 0 : */
+	/* 		copy_from_user (ip, (void*) ioctl_param, 16); */
+	/* 		break; */
+	/* 	default: */
+	/* 		break; */
+	/* } */
+
+	return 0;
 }
 
 static int my_open(struct inode *inode, struct file *file)
@@ -279,21 +289,23 @@ static loff_t my_llseek(struct file *filp, loff_t off, int whence)
 
 static ssize_t my_read(struct file *filp, char __user *buff, size_t count, loff_t *offp)
 {
+	return 0;
+}
+
+static ssize_t my_write(struct file *filp, const char __user *buff, size_t count, loff_t *offp)
+{
 	int rlen;
 
 	if(wait_event_interruptible(driver_os_wait, datalen >= 0) != 0)	return -ERESTARTSYS;
 
 	rlen = (count < datalen)?count:datalen;
 
-	if(copy_to_user(buff, sockbuf, rlen))	return -EFAULT;
+	if(copy_from_user((void *)sockbuf, buff, rlen))	return -EFAULT;
 
-	datalen = 0;	// FIXME: race condition!?
+	// wake up driver to send file
+	sockbuf_get = 1;
+	wake_up_interruptible(&driver_os_wait);
 
-	return rlen;
-}
-
-static ssize_t my_write(struct file *filp, const char __user *buff, size_t count, loff_t *offp)
-{
 	return -1;
 }
 
