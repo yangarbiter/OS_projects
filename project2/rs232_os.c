@@ -2,6 +2,7 @@
 #include <linux/fs.h>
 #include <linux/cdev.h>
 #include <linux/workqueue.h>
+#include <linux/init.h>
 #include <net/sock.h>
 #include <net/tcp.h>
 #include <asm/uaccess.h>
@@ -38,6 +39,7 @@ DECLARE_WORK(driver_os_work, driver_os_work_handler);
 DECLARE_WAIT_QUEUE_HEAD(driver_os_wait);
 static struct socket *ssock;
 static char sockbuf[4096];
+volatile int flag; /* 1 for unread */
 static int datalen;
 
 static int __init initialize(void)
@@ -216,14 +218,20 @@ static void driver_os_work_handler(struct work_struct *work)
 
 		// got a connection
 
-		ret = driver_os_recv(csock, sockbuf, 4096);
-		
-		if(ret > 0){
-			sockbuf[ret] = 0;
-			printk(KERN_INFO "recv: %s", sockbuf);
-			driver_os_send(csock, sockbuf, ret);	// echo
-			datalen = ret;
-			wake_up_interruptible(&driver_os_wait);
+		while (1) {
+			ret = driver_os_recv(csock, sockbuf, 4096);
+			
+			if(ret > 0){
+				sockbuf[ret] = 0;
+				printk(KERN_INFO "recv: %s", sockbuf);
+				datalen = ret;
+				wake_up_interruptible(&driver_os_wait);
+			}
+			else {
+				datalen = 0;
+				wake_up_interruptible(&driver_os_wait);
+				break;
+			}
 		}
 
 		csock->ops->shutdown(csock, SHUT_RDWR);
@@ -239,8 +247,12 @@ static void driver_os_work_handler(struct work_struct *work)
 static long my_ioctl(struct file *file,unsigned int ioctl_num, unsigned long ioctl_param)
 {
 	long ret = -EINVAL;
+	char ip[16];
 
 	switch(ioctl_num){
+		case 0 :
+			copy_from_user (ip, (void*) ioctl_param, 16);
+			break;
 		default:
 			break;
 	}
@@ -267,7 +279,7 @@ static ssize_t my_read(struct file *filp, char __user *buff, size_t count, loff_
 {
 	int rlen;
 
-	if(wait_event_interruptible(driver_os_wait, datalen > 0) != 0)	return -ERESTARTSYS;
+	if(wait_event_interruptible(driver_os_wait, datalen >= 0) != 0)	return -ERESTARTSYS;
 
 	rlen = (count < datalen)?count:datalen;
 
