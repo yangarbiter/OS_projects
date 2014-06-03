@@ -44,6 +44,7 @@ static int __init initialize(void)
 {
 	int ret;
 
+	// KERN_ERR => <3> 代表發生錯誤
 	if((ret = alloc_chrdev_region(&devno, 0, 1, "driver_os")) < 0){
 		printk(KERN_ERR "alloc_chrdev_region returned %d\n", ret);
 		return ret;
@@ -55,6 +56,7 @@ static int __init initialize(void)
 		goto class_create_failed;
 	}
 
+	// 以driver_os_cl這個類創建/dev/driver_os檔案
 	if(device_create(driver_os_cl, NULL, devno, NULL, "driver_os") == NULL){
 		printk(KERN_ERR "device_create returned NULL\n");
 		ret = -ENOMEM;
