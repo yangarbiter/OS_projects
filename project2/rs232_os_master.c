@@ -15,7 +15,7 @@ static ssize_t my_write(struct file *filp, const char __user *buff, size_t count
 static long my_ioctl(struct file *file, unsigned int ioctl_num, unsigned long ioctl_param);
 static int my_open(struct inode *inode, struct file *file);
 static int my_close(struct inode *inode, struct file *file);
-static ssize_t driver_os_recv(struct socket *csock, char *buf, size_t size);
+/* static ssize_t driver_os_recv(struct socket *csock, char *buf, size_t size); */
 static ssize_t driver_os_send(struct socket *csock, char *buf, size_t size);
 static void driver_os_work_handler(struct work_struct *work);
 // static *void my_mmap(struct file * filp, struct vm_area_struct *vma);
@@ -119,31 +119,31 @@ static void __exit exiting(void)
 module_init(initialize);
 module_exit(exiting);
 
-static ssize_t driver_os_recv(struct socket *csock, char *buf, size_t size)
-{
-	struct msghdr msg;
-	struct iovec iov;
-	mm_segment_t oldfs;
-	int ret;
-
-	iov.iov_base = (void *)buf;
-	iov.iov_len = (__kernel_size_t)size;
-
-	msg.msg_name = NULL;
-	msg.msg_namelen = 0;
-	msg.msg_iov = &iov;
-	msg.msg_iovlen = 1;
-	msg.msg_control = NULL;
-	msg.msg_controllen = 0;
-	msg.msg_flags = 0;
-
-	oldfs = get_fs();
-	set_fs(KERNEL_DS);
-	ret = sock_recvmsg(csock, &msg, size, 0);
-	set_fs(oldfs);
-
-	return ret;
-}
+/* static ssize_t driver_os_recv(struct socket *csock, char *buf, size_t size) */
+/* { */
+/* 	struct msghdr msg; */
+/* 	struct iovec iov; */
+/* 	mm_segment_t oldfs; */
+/* 	int ret; */
+/*  */
+/* 	iov.iov_base = (void *)buf; */
+/* 	iov.iov_len = (__kernel_size_t)size; */
+/*  */
+/* 	msg.msg_name = NULL; */
+/* 	msg.msg_namelen = 0; */
+/* 	msg.msg_iov = &iov; */
+/* 	msg.msg_iovlen = 1; */
+/* 	msg.msg_control = NULL; */
+/* 	msg.msg_controllen = 0; */
+/* 	msg.msg_flags = 0; */
+/*  */
+/* 	oldfs = get_fs(); */
+/* 	set_fs(KERNEL_DS); */
+/* 	ret = sock_recvmsg(csock, &msg, size, 0); */
+/* 	set_fs(oldfs); */
+/*  */
+/* 	return ret; */
+/* } */
 
 static ssize_t driver_os_send(struct socket *csock, char *buf, size_t size)
 {
@@ -269,7 +269,7 @@ static long my_ioctl(struct file *file,unsigned int ioctl_num, unsigned long ioc
 	/* 		break; */
 	/* } */
 
-	return ret;
+	return 0;
 }
 
 static int my_open(struct inode *inode, struct file *file)
@@ -289,7 +289,7 @@ static loff_t my_llseek(struct file *filp, loff_t off, int whence)
 
 static ssize_t my_read(struct file *filp, char __user *buff, size_t count, loff_t *offp)
 {
-	return rlen;
+	return 0;
 }
 
 static ssize_t my_write(struct file *filp, const char __user *buff, size_t count, loff_t *offp)
@@ -300,7 +300,7 @@ static ssize_t my_write(struct file *filp, const char __user *buff, size_t count
 
 	rlen = (count < datalen)?count:datalen;
 
-	if(copy_from_user(buff, sockbuf, rlen))	return -EFAULT;
+	if(copy_from_user((void *)sockbuf, buff, rlen))	return -EFAULT;
 
 	// wake up driver to send file
 	sockbuf_get = 1;
