@@ -3,6 +3,7 @@
 #include <linux/cdev.h>
 #include <linux/workqueue.h>
 #include <linux/init.h>
+#include <linux/mm.h>
 #include <net/sock.h>
 #include <net/tcp.h>
 #include <asm/uaccess.h>
@@ -18,7 +19,7 @@ static int my_close(struct inode *inode, struct file *file);
 /* static ssize_t driver_os_recv(struct socket *csock, char *buf, size_t size); */
 static ssize_t driver_os_send(struct socket *csock, char *buf, size_t size);
 static void driver_os_work_handler(struct work_struct *work);
-// static *void my_mmap(struct file * filp, struct vm_area_struct *vma);
+static int my_mmap(struct file *filp, struct vm_area_struct *vma);
 
 static struct file_operations driver_os_ops = {
 	.owner = THIS_MODULE,
@@ -28,7 +29,7 @@ static struct file_operations driver_os_ops = {
 	.unlocked_ioctl = my_ioctl,
 	.open = my_open,
 	.release = my_close,
-	// .mmap = my_mmap
+	.mmap = my_mmap,
 };
 
 static dev_t devno;
@@ -309,14 +310,28 @@ static ssize_t my_write(struct file *filp, const char __user *buff, size_t count
 	return -1;
 }
 
+void vma_open(struct vm_area_struct *vma)
+{
+	printk("VMA open, virt %lx, phys %lx\n", vma->vm_start, vma->vm_pgoff << PAGE_SHIFT);
+} 
 
-// static *void my_mmap(struct file * filp, struct vm_area_struct *vma)
-// {
-// 	if (remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
-// 				vma->vm_end - vma->vm_start,
-// 				vma->vm_page_prot))
-// 		return -EAGAIN;
-// 	vma->vm_private_data = filp->private_data;
-// 	vma->vm_op = &simple_remap_vm_ops;
-// 
-// }
+void vma_close(struct vm_area_struct *vma)
+{
+	printk("VMA close.\n");
+}
+
+static struct vm_operations_struct remap_vm_ops = {
+	.open = vma_open,
+	.close = vma_close
+};
+
+static int my_mmap(struct file * filp, struct vm_area_struct *vma)
+{
+	if (remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
+				vma->vm_end - vma->vm_start,
+				vma->vm_page_prot))
+		return -EAGAIN;
+	vma->vm_ops = &remap_vm_ops;
+	vma_open(vma);
+	return 0;
+}
