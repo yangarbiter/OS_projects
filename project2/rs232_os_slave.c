@@ -74,10 +74,17 @@ static int __init initialize(void)
 		goto cdev_add_failed;
 	}
 
+	if((wq = create_workqueue("driver_os_wq")) == NULL){
+		printk(KERN_ERR "create_workqueue returned NULL\n");
+		ret = -ENOMEM;
+		goto create_workqueue_failed;
+	}
+
 	printk(KERN_INFO "driver_os initialized!\n");
 
 	return 0;
 
+create_workqueue_failed :
 	cdev_del(&driver_os_dev);
 cdev_add_failed:
 	device_destroy(driver_os_cl, devno);
@@ -270,15 +277,9 @@ static long my_ioctl(struct file *file,unsigned int ioctl_num, unsigned long ioc
 			dest.sin_family = AF_INET;
 			dest.sin_port = htons (8888);
 			dest.sin_addr.s_addr = in_aton (ip);
-			if ((ret = csock->ops->connect (csock, (struct sockaddr*) &dest, sizeof (struct sockaddr_in), !O_NONBLOCK)) < 0) {
+			if ((ret = csock->ops->connect (csock, (struct sockaddr*) &dest, sizeof (struct sockaddr_in), O_BLOCK)) < 0) {
 				printk (KERN_ERR "socket connect failed, return %ld\n", ret);
 				goto socket_connect_failed;
-			}
-
-			if((wq = create_workqueue("driver_os_wq")) == NULL){
-				printk(KERN_ERR "create_workqueue returned NULL\n");
-				ret = -ENOMEM;
-				goto create_workqueue_failed;
 			}
 
 			queue_work(wq, &driver_os_slave_work);
@@ -318,8 +319,6 @@ static ssize_t my_read(struct file *filp, char __user *buff, size_t count, loff_
 	rlen = (count < datalen)?count:datalen;
 
 	if(copy_to_user(buff, sockbuf, rlen))	return -EFAULT;
-
-	datalen = 0;	// FIXME: race condition!?
 
 	return rlen;
 }
