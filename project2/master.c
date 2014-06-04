@@ -3,7 +3,7 @@
 #include<string.h>
 #include<fcntl.h>
 
-const char* DEV_PATH = "/dev/rs232_os_master";
+const char* DEV_PATH = "/dev/driver_os_master";
 
 int main(int argc, char* argv[])
 {
