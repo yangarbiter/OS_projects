@@ -10,7 +10,8 @@ int main(int argc, char* argv[])
 {
 	int dev_fd;
 
-	if(argc != 3){
+	if(argc != 4){
+		fprintf (stderr, "Wrong arguments\n");
 		return 1;
 	}
 
