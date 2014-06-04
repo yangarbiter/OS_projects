@@ -17,8 +17,7 @@ static long my_ioctl(struct file *file, unsigned int ioctl_num, unsigned long io
 static int my_open(struct inode *inode, struct file *file);
 static int my_close(struct inode *inode, struct file *file);
 static ssize_t driver_os_recv(struct socket *csock, char *buf, size_t size);
-static ssize_t driver_os_send(struct socket *csock, char *buf, size_t size);
-static void driver_os_work_handler(struct work_struct *work);
+// static ssize_t driver_os_send(struct socket *csock, char *buf, size_t size);
 // static *void my_mmap(struct file * filp, struct vm_area_struct *vma);
 
 static struct file_operations driver_os_ops = {
@@ -36,7 +35,6 @@ static dev_t devno;
 static struct class *driver_os_cl;
 static struct cdev driver_os_dev;
 static struct workqueue_struct *wq;
-DECLARE_WORK(driver_os_work, driver_os_work_handler);
 DECLARE_WAIT_QUEUE_HEAD(driver_os_wait);
 static struct socket *ssock;
 static char sockbuf[4096];
@@ -53,7 +51,7 @@ static int __init initialize(void)
 		return ret;
 	}
 
-	if((driver_os_cl = class_create(THIS_MODULE, "chardrv")) == NULL){
+	if((driver_os_cl = class_create(THIS_MODULE, "chardrv_slave")) == NULL){
 		printk(KERN_ERR "class_create returned NULL\n");
 		ret = -ENOMEM;
 		goto class_create_failed;
@@ -74,7 +72,7 @@ static int __init initialize(void)
 		goto cdev_add_failed;
 	}
 
-	if((wq = create_workqueue("driver_os_wq")) == NULL){
+	if((wq = create_workqueue("driver_os_slave_wq")) == NULL){
 		printk(KERN_ERR "create_workqueue returned NULL\n");
 		ret = -ENOMEM;
 		goto create_workqueue_failed;
@@ -141,98 +139,38 @@ static ssize_t driver_os_recv(struct socket *csock, char *buf, size_t size)
 	return ret;
 }
 
-static ssize_t driver_os_send(struct socket *csock, char *buf, size_t size)
-{
-	struct msghdr msg;
-	struct iovec iov;
-	mm_segment_t old_fs;
-	int ret;
+// static ssize_t driver_os_send(struct socket *csock, char *buf, size_t size)
+// {
+// 	struct msghdr msg;
+// 	struct iovec iov;
+// 	mm_segment_t old_fs;
+// 	int ret;
+// 
+// 	iov.iov_base = (void *)buf;
+// 	iov.iov_len = (__kernel_size_t)size;
+// 
+// 	msg.msg_name = NULL;
+// 	msg.msg_namelen = 0;
+// 	msg.msg_iov = &iov;
+// 	msg.msg_iovlen = 1;
+// 	msg.msg_control = NULL;
+// 	msg.msg_controllen = 0;
+// 	msg.msg_flags = 0;
+// 
+// 	old_fs = get_fs();
+// 	set_fs(KERNEL_DS);
+// 	ret = sock_sendmsg(csock, &msg, size);
+// 	set_fs(old_fs);
+// 	
+// 	return ret;
+// }
 
-	iov.iov_base = (void *)buf;
-	iov.iov_len = (__kernel_size_t)size;
-
-	msg.msg_name = NULL;
-	msg.msg_namelen = 0;
-	msg.msg_iov = &iov;
-	msg.msg_iovlen = 1;
-	msg.msg_control = NULL;
-	msg.msg_controllen = 0;
-	msg.msg_flags = 0;
-
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-	ret = sock_sendmsg(csock, &msg, size);
-	set_fs(old_fs);
-	
-	return ret;
-}
-
-
-static void driver_os_work_handler(struct work_struct *work)
-{
-	int ret;
-	struct sockaddr_in saddr;
-	struct socket *csock = NULL;
-
-	if(ssock != NULL){
-		printk(KERN_ERR "ssock != NULL\n");
-		return;
-	}
-	
-	if((ret = sock_create_kern(AF_INET, SOCK_STREAM, IPPROTO_TCP, &ssock)) < 0){
-		printk(KERN_ERR "sock_create returned %d\n", ret);
-		ssock = NULL;
-		return;
-	}
-
-	memset(&saddr, 0, sizeof(saddr));
-	saddr.sin_family = AF_INET;
-	saddr.sin_port = htons(8888);
-	saddr.sin_addr.s_addr = INADDR_ANY;
-
-	if((ret = ssock->ops->bind(ssock, (struct sockaddr*)&saddr, sizeof(saddr))) < 0){
-		printk(KERN_ERR "bind returned %d\n", ret);
-		sock_release(ssock);
-		ssock = NULL;
-		return;
-	}
-
-	if((ret = ssock->ops->listen(ssock, 1)) < 0){
-		printk(KERN_ERR "listen returned %d\n", ret);
-		ssock->ops->release(ssock);
-		sock_release(ssock);
-		ssock = NULL;
-		return;
-	}
-
-	while(1){
-		if((ret = sock_create_kern(AF_INET, SOCK_STREAM, IPPROTO_TCP, &csock)) < 0){
-			printk(KERN_ERR "sock_create_lite returned %d\n", ret);
-			break;
-		}
-
-		if((ssock->ops->accept(ssock, csock, 0)) < 0){
-			printk(KERN_ERR "accept returned %d\n", ret);
-			sock_release(csock);
-			break;
-		}
-
-		// got a connection
-
-
-		csock->ops->shutdown(csock, SHUT_RDWR);
-		csock->ops->release(csock);
-		sock_release(csock);
-	}
-
-	ssock->ops->release(ssock);
-	sock_release(ssock);
-	ssock = NULL;
-}
 
 struct socket *csock;
 static void driver_os_slave_work_handler(struct work_struct *work) {
 	int ret;
+
+	printk (KERN_INFO "handler start\n");
 
 	while (1) {
 		ret = driver_os_recv(csock, sockbuf, 4096);
@@ -253,6 +191,8 @@ static void driver_os_slave_work_handler(struct work_struct *work) {
 	csock->ops->shutdown(csock, SHUT_RDWR);
 	csock->ops->release(csock);
 	sock_release(csock);
+
+	printk (KERN_INFO "handler finishes\n");
 }
 
 DECLARE_WORK(driver_os_slave_work, driver_os_slave_work_handler);
@@ -262,6 +202,8 @@ static long my_ioctl(struct file *file,unsigned int ioctl_num, unsigned long ioc
 	long ret = -EINVAL;
 	char ip[16];
 	struct sockaddr_in dest;
+
+	printk (KERN_INFO "ioctl called\n");
 
 	switch(ioctl_num){
 		case 0 :
@@ -277,6 +219,9 @@ static long my_ioctl(struct file *file,unsigned int ioctl_num, unsigned long ioc
 			dest.sin_family = AF_INET;
 			dest.sin_port = htons (8888);
 			dest.sin_addr.s_addr = in_aton (ip);
+
+			printk (KERN_INFO "ip = %s\n", ip);
+
 			if ((ret = csock->ops->connect (csock, (struct sockaddr*) &dest, sizeof (struct sockaddr_in), !O_NONBLOCK)) < 0) {
 				printk (KERN_ERR "socket connect failed, return %ld\n", ret);
 				goto socket_connect_failed;
@@ -291,7 +236,6 @@ static long my_ioctl(struct file *file,unsigned int ioctl_num, unsigned long ioc
 
 socket_create_failed :
 socket_connect_failed :
-create_workqueue_failed :
 	return ret;
 }
 

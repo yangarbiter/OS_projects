@@ -16,7 +16,7 @@ int main(int argc, char* argv[])
 
 	dev_fd = open(DEV_PATH, O_RDONLY);
 
-	ioctl(dev_fd, 0, argv[1]);  //slave pass ip and bulid connection
+	ioctl(dev_fd, 0, argv[3]);  //slave pass ip and bulid connection
 
 	if(strcmp(argv[2], "fcntl") == 0){
 		int s, f_fd = open(argv[1], O_WRONLY);
