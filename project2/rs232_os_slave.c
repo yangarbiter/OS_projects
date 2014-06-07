@@ -36,12 +36,11 @@ static struct file_operations driver_os_ops = {
 static dev_t devno;
 static struct class *driver_os_cl;
 static struct cdev driver_os_dev;
-static struct workqueue_struct *wq;
-DECLARE_WAIT_QUEUE_HEAD(driver_os_wait);
+// static struct workqueue_struct *wq;
+// DECLARE_WAIT_QUEUE_HEAD(driver_os_wait);
 static struct socket *ssock;
 static char sockbuf[4096];
-volatile int flag; /* 1 for unread */
-static int datalen;
+// static int datalen;
 
 static int __init initialize(void)
 {
@@ -74,17 +73,17 @@ static int __init initialize(void)
 		goto cdev_add_failed;
 	}
 
-	if((wq = create_workqueue("driver_os_slave_wq")) == NULL){
-		printk(KERN_ERR "create_workqueue returned NULL\n");
-		ret = -ENOMEM;
-		goto create_workqueue_failed;
-	}
+	// if((wq = create_workqueue("driver_os_slave_wq")) == NULL){
+	// 	printk(KERN_ERR "create_workqueue returned NULL\n");
+	// 	ret = -ENOMEM;
+	// 	goto create_workqueue_failed;
+	// }
 
 	printk(KERN_INFO "driver_os initialized!\n");
 
 	return 0;
 
-create_workqueue_failed :
+// create_workqueue_failed :
 	cdev_del(&driver_os_dev);
 cdev_add_failed:
 	device_destroy(driver_os_cl, devno);
@@ -102,7 +101,7 @@ static void __exit exiting(void)
 		ssock->ops->shutdown(ssock, SHUT_RDWR);
 	}
 
-	if(wq != NULL)	destroy_workqueue(wq);
+	// if(wq != NULL)	destroy_workqueue(wq);
 
 	cdev_del(&driver_os_dev);
 	device_destroy(driver_os_cl, devno);
@@ -169,35 +168,35 @@ static ssize_t driver_os_recv(struct socket *csock, char *buf, size_t size)
 
 
 struct socket *csock;
-static void driver_os_slave_work_handler(struct work_struct *work) {
-	int ret;
+// static void driver_os_slave_work_handler(struct work_struct *work) {
+// 	int ret;
+// 
+// 	printk (KERN_INFO "handler start\n");
+// 
+// 	while (1) {
+// 		ret = driver_os_recv(csock, sockbuf, 4096);
+// 		
+// 		if(ret > 0){
+// 			sockbuf[ret] = 0;
+// 			printk(KERN_INFO "recv: %s", sockbuf);
+// 			datalen = ret;
+// 			wake_up_interruptible(&driver_os_wait);
+// 		}
+// 		else {
+// 			datalen = 0;
+// 			wake_up_interruptible(&driver_os_wait);
+// 			break;
+// 		}
+// 	}
+// 
+// 	csock->ops->shutdown(csock, SHUT_RDWR);
+// 	csock->ops->release(csock);
+// 	sock_release(csock);
+// 
+// 	printk (KERN_INFO "handler finishes\n");
+// }
 
-	printk (KERN_INFO "handler start\n");
-
-	while (1) {
-		ret = driver_os_recv(csock, sockbuf, 4096);
-		
-		if(ret > 0){
-			sockbuf[ret] = 0;
-			printk(KERN_INFO "recv: %s", sockbuf);
-			datalen = ret;
-			wake_up_interruptible(&driver_os_wait);
-		}
-		else {
-			datalen = 0;
-			wake_up_interruptible(&driver_os_wait);
-			break;
-		}
-	}
-
-	csock->ops->shutdown(csock, SHUT_RDWR);
-	csock->ops->release(csock);
-	sock_release(csock);
-
-	printk (KERN_INFO "handler finishes\n");
-}
-
-DECLARE_WORK(driver_os_slave_work, driver_os_slave_work_handler);
+// DECLARE_WORK(driver_os_slave_work, driver_os_slave_work_handler);
 
 static long my_ioctl(struct file *file,unsigned int ioctl_num, unsigned long ioctl_param)
 {
@@ -222,14 +221,12 @@ static long my_ioctl(struct file *file,unsigned int ioctl_num, unsigned long ioc
 			dest.sin_port = htons (8888);
 			dest.sin_addr.s_addr = in_aton (ip);
 
-			printk (KERN_INFO "ip = %s\n", ip);
-
 			if ((ret = csock->ops->connect (csock, (struct sockaddr*) &dest, sizeof (struct sockaddr_in), !O_NONBLOCK)) < 0) {
 				printk (KERN_ERR "socket connect failed, return %ld\n", ret);
 				goto socket_connect_failed;
 			}
 
-			queue_work(wq, &driver_os_slave_work);
+			// queue_work(wq, &driver_os_slave_work);
 
 			break;
 		default:
@@ -258,15 +255,26 @@ static loff_t my_llseek(struct file *filp, loff_t off, int whence)
 
 static ssize_t my_read(struct file *filp, char __user *buff, size_t count, loff_t *offp)
 {
-	int rlen;
+	int readbyte;
+	static char *readp = sockbuf;
+	static int remain = 0;
 
-	if(wait_event_interruptible(driver_os_wait, datalen > 0) != 0)	return -ERESTARTSYS;
+	if (remain == 0) {
+		remain = driver_os_recv (csock, sockbuf, 4096);
+		sockbuf[remain] = '\0';
+		readp = sockbuf;
+	}
 
-	rlen = (count < datalen)?count:datalen;
+	readbyte = (remain <= count ? remain : count);
 
-	if(copy_to_user(buff, sockbuf, rlen))	return -EFAULT;
+	if (copy_to_user (buff, readp, readbyte)) {
+		return -EFAULT;
+	}
 
-	return rlen;
+	readp += readbyte;
+	remain -= readbyte;
+
+	return readbyte;
 }
 
 static ssize_t my_write(struct file *filp, const char __user *buff, size_t count, loff_t *offp)

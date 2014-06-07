@@ -16,7 +16,7 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 
-	f_fd = open(argv[1], O_WRONLY);
+	f_fd = open(argv[1], O_WRONLY | O_CREAT);
 	dev_fd = open(DEV_PATH, O_RDONLY);
 
 	ioctl(dev_fd, 0, argv[3]);  //slave pass ip and bulid connection
@@ -27,12 +27,14 @@ int main(int argc, char* argv[])
 
 		while((s = read(dev_fd, buf, 512)) != 0){
 			if(s == -1){
-				perror ("");
+				perror ("read == -1");
 				break;
 			}
 			while(s != 0){
 				int ret = write(f_fd, buf, s);
 				if(ret == -1){
+					perror ("ret == -1");
+					return 1;
 				}
 				s -= ret;
 			}
