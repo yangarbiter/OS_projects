@@ -1,5 +1,9 @@
 *.mod
 *.mod.c
+*.ko
+*.ko.cmd
+*.o
+*.o.cmd
 master
 slave
 modules.order
