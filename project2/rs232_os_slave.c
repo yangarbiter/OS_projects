@@ -262,7 +262,7 @@ static int my_close(struct inode *inode, struct file *file)
 	ms *= 1000;
 	ms += (ed_ns - st_ns) / 1000;
 
-	snprintf (msg, sizeof (msg), "Transmission time: %d ms, File size: %d bytes\n", ms, fileSize);
+	snprintf (msg, sizeof (msg), "Transmission time: %lld ms, File size: %d bytes\n", ms, fileSize);
 
 	printk (msg);
 	return 0;
