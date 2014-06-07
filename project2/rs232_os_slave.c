@@ -255,10 +255,12 @@ static int my_open(struct inode *inode, struct file *file)
 static int my_close(struct inode *inode, struct file *file)
 {
 	char msg[256];
-	int ms;
+	long long ms;
 
 	gettime (&ed_s, &ed_ns);
-	ms = (ed_s - st_s) * 1000 + (ed_ns - st_ns) / 1000;
+	ms = ed_s - st_s;
+	ms *= 1000;
+	ms += (ed_ns - st_ns) / 1000;
 
 	snprintf (msg, sizeof (msg), "Transmission time: %d ms, File size: %d bytes\n", ms, fileSize);
 
