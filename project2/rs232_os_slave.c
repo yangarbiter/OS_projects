@@ -5,6 +5,7 @@
 #include <linux/init.h>
 #include <linux/inet.h>
 #include <linux/mm.h>
+#include <linux/time.h>
 #include <net/sock.h>
 #include <net/tcp.h>
 #include <asm/uaccess.h>
@@ -38,9 +39,12 @@ static struct class *driver_os_cl;
 static struct cdev driver_os_dev;
 // static struct workqueue_struct *wq;
 // DECLARE_WAIT_QUEUE_HEAD(driver_os_wait);
-static struct socket *ssock;
+// static struct socket *ssock;
 static char sockbuf[4096];
 // static int datalen;
+static time_t st_s, ed_s;
+static long st_ns, ed_ns;
+static int fileSize;
 
 static int __init initialize(void)
 {
@@ -79,7 +83,7 @@ static int __init initialize(void)
 	// 	goto create_workqueue_failed;
 	// }
 
-	printk(KERN_INFO "driver_os initialized!\n");
+	printk(KERN_INFO "driver_os_slave initialized!\n");
 
 	return 0;
 
@@ -97,10 +101,6 @@ class_create_failed:
 
 static void __exit exiting(void)
 {
-	if(ssock != NULL){	// FIXME: race condition!?
-		ssock->ops->shutdown(ssock, SHUT_RDWR);
-	}
-
 	// if(wq != NULL)	destroy_workqueue(wq);
 
 	cdev_del(&driver_os_dev);
@@ -108,7 +108,7 @@ static void __exit exiting(void)
 	class_destroy(driver_os_cl);
 	unregister_chrdev_region(devno, 1);
 
-	printk(KERN_INFO "driver_os removed!\n");
+	printk(KERN_INFO "driver_os_slave removed!\n");
 }
 
 module_init(initialize);
@@ -204,8 +204,6 @@ static long my_ioctl(struct file *file,unsigned int ioctl_num, unsigned long ioc
 	char ip[16];
 	struct sockaddr_in dest;
 
-	printk (KERN_INFO "ioctl called\n");
-
 	switch(ioctl_num){
 		case 0 :
 			copy_from_user (ip, (void*) ioctl_param, 16);
@@ -238,13 +236,33 @@ socket_connect_failed :
 	return ret;
 }
 
+static int gettime (time_t *s, long *ns)
+{
+	struct timespec time;
+	getnstimeofday(&time);
+	*s = time.tv_sec;
+	*ns = time.tv_nsec;
+	return 0;
+}
+
 static int my_open(struct inode *inode, struct file *file)
 {
+	gettime (&st_s, &st_ns);
+	fileSize = 0;
 	return 0;
 }
 
 static int my_close(struct inode *inode, struct file *file)
 {
+	char msg[256];
+	int ms;
+
+	gettime (&ed_s, &ed_ns);
+	ms = (ed_s - st_s) * 1000 + (ed_ns - st_ns) / 1000;
+
+	snprintf (msg, sizeof (msg), "Transmission time: %d ms, File size: %d bytes\n", ms, fileSize);
+
+	printk (msg);
 	return 0;
 }
 
@@ -273,6 +291,8 @@ static ssize_t my_read(struct file *filp, char __user *buff, size_t count, loff_
 
 	readp += readbyte;
 	remain -= readbyte;
+
+	fileSize += readbyte;
 
 	return readbyte;
 }

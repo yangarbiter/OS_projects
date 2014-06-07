@@ -16,7 +16,7 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 
-	f_fd = open(argv[1], O_WRONLY | O_CREAT);
+	f_fd = open(argv[1], O_WRONLY | O_CREAT, 0644);
 	dev_fd = open(DEV_PATH, O_RDONLY);
 
 	ioctl(dev_fd, 0, argv[3]);  //slave pass ip and bulid connection
