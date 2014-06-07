@@ -3,8 +3,8 @@ CFLAGS_rs232_os_slave := -Wall
 CFLAGS_rs232_os_master := -Wall
 
 all: module
-	gcc master.c -o master
-	gcc slave.c -o slave
+	gcc -Wall master.c -o master
+	gcc -Wall slave.c -o slave
 
 module:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules

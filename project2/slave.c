@@ -25,8 +25,10 @@ int main(int argc, char* argv[])
 		int s;
 		char buf[512];
 
-		while(s = read(dev_fd, buf, 512) != 0){
+		while((s = read(dev_fd, buf, 512)) != 0){
 			if(s == -1){
+				perror ("");
+				break;
 			}
 			while(s != 0){
 				int ret = write(f_fd, buf, s);
