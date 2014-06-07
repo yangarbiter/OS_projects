@@ -19,7 +19,7 @@ static int my_open(struct inode *inode, struct file *file);
 static int my_close(struct inode *inode, struct file *file);
 static ssize_t driver_os_recv(struct socket *csock, char *buf, size_t size);
 // static ssize_t driver_os_send(struct socket *csock, char *buf, size_t size);
-static void driver_os_work_handler(struct work_struct *work);
+// static void driver_os_work_handler(struct work_struct *work);
 static int my_mmap(struct file *filp, struct vm_area_struct *vma);
 
 static struct file_operations driver_os_ops = {
