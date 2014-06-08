@@ -42,12 +42,11 @@ static struct socket *ssock;
 static char sockbuf[4096];
 volatile int flag; /* 1 for unread */
 static int datalen;
-static int sockbuf_get;
+struct socket *csock = NULL;
 
 static int __init initialize(void)
 {
 	int ret;
-	sockbuf_get = 0;
 
 	// KERN_ERR => <3> 代表發生錯誤
 	if((ret = alloc_chrdev_region(&devno, 0, 1, "driver_os_master")) < 0){
@@ -76,13 +75,13 @@ static int __init initialize(void)
 		goto cdev_add_failed;
 	}
 
-	if((wq = create_workqueue("driver_os_wq")) == NULL){
-		printk(KERN_ERR "create_workqueue returned NULL\n");
-		ret = -ENOMEM;
-		goto create_workqueue_failed;
-	}
+	/* if((wq = create_workqueue("driver_os_wq")) == NULL){ */
+	/* 	printk(KERN_ERR "create_workqueue returned NULL\n"); */
+	/* 	ret = -ENOMEM; */
+	/* 	goto create_workqueue_failed; */
+	/* } */
 
-	queue_work(wq, &driver_os_work);
+	/* queue_work(wq, &driver_os_work); */
 
 	printk(KERN_INFO "driver_os initialized!\n");
 
@@ -107,7 +106,7 @@ static void __exit exiting(void)
 		ssock->ops->shutdown(ssock, SHUT_RDWR);
 	}
 
-	if(wq != NULL)	destroy_workqueue(wq);
+	/* if(wq != NULL)	destroy_workqueue(wq); */
 
 	cdev_del(&driver_os_dev);
 	device_destroy(driver_os_cl, devno);
@@ -168,13 +167,14 @@ static ssize_t driver_os_send(struct socket *csock, char *buf, size_t size)
 	set_fs(KERNEL_DS);
 	ret = sock_sendmsg(csock, &msg, size);
 	set_fs(old_fs);
-	
+
 	return ret;
 }
 
 
 static void driver_os_work_handler(struct work_struct *work)
 {
+	printk("handler start");
 	int ret;
 	struct sockaddr_in saddr;
 	struct socket *csock = NULL;
@@ -183,7 +183,7 @@ static void driver_os_work_handler(struct work_struct *work)
 		printk(KERN_ERR "ssock != NULL\n");
 		return;
 	}
-	
+
 	if((ret = sock_create_kern(AF_INET, SOCK_STREAM, IPPROTO_TCP, &ssock)) < 0){
 		printk(KERN_ERR "sock_create returned %d\n", ret);
 		ssock = NULL;
@@ -192,7 +192,7 @@ static void driver_os_work_handler(struct work_struct *work)
 
 	memset(&saddr, 0, sizeof(saddr));
 	saddr.sin_family = AF_INET;
-	saddr.sin_port = htons(8888);
+	saddr.sin_port = htons(8881);
 	saddr.sin_addr.s_addr = INADDR_ANY;
 
 	if((ret = ssock->ops->bind(ssock, (struct sockaddr*)&saddr, sizeof(saddr))) < 0){
@@ -225,11 +225,9 @@ static void driver_os_work_handler(struct work_struct *work)
 		// got a connection, csock是要傳出去的socket
 
 		while (1) {
-			wait_event_interruptible(driver_os_wait, sockbuf_get);
-			sockbuf_get = 0;
 
 			ret = driver_os_send(csock, sockbuf, 4096);
-			
+
 			if(ret > 0){
 				sockbuf[ret] = 0;
 				printk(KERN_INFO "recv: %s", sockbuf);
@@ -256,30 +254,82 @@ static void driver_os_work_handler(struct work_struct *work)
 static long my_ioctl(struct file *file,unsigned int ioctl_num, unsigned long ioctl_param)
 {
 	// master 無需ioctl
-	
 
 
-	/* long ret = -EINVAL; */
-	/* char ip[16]; */
+	// 0 為
+	int ret;
+	if (ioctl_num == 0) {
+		struct sockaddr_in saddr;
 
-	/* switch(ioctl_num){ */
-	/* 	case 0 : */
-	/* 		copy_from_user (ip, (void*) ioctl_param, 16); */
-	/* 		break; */
-	/* 	default: */
-	/* 		break; */
-	/* } */
+		if(ssock != NULL){
+			printk(KERN_ERR "ssock != NULL\n");
+			return 2;
+		}
+
+		if((ret = sock_create_kern(AF_INET, SOCK_STREAM, IPPROTO_TCP, &ssock)) < 0){
+			printk(KERN_ERR "sock_create returned %d\n", ret);
+			ssock = NULL;
+			return 3;
+		}
+		printk("socket create\n");
+
+		memset(&saddr, 0, sizeof(saddr));
+		saddr.sin_family = AF_INET;
+		saddr.sin_port = htons(8888);
+		saddr.sin_addr.s_addr = INADDR_ANY;
+
+		if((ret = ssock->ops->bind(ssock, (struct sockaddr*)&saddr, sizeof(saddr))) < 0){
+			printk(KERN_ERR "bind returned %d\n", ret);
+			sock_release(ssock);
+			ssock = NULL;
+			return 4;
+		}
+		printk("socket bind\n");
+
+		if((ret = ssock->ops->listen(ssock, 1)) < 0){
+			printk(KERN_ERR "listen returned %d\n", ret);
+			ssock->ops->release(ssock);
+			sock_release(ssock);
+			ssock = NULL;
+			return 5;
+		}
+		printk("socket listen\n");
+
+		if((ret = sock_create_kern(AF_INET, SOCK_STREAM, IPPROTO_TCP, &csock)) < 0){
+			printk(KERN_ERR "sock_create_lite returned %d\n", ret);
+			return 6;
+		}
+
+		if((ssock->ops->accept(ssock, csock, 0)) < 0){
+			printk(KERN_ERR "accept returned %d\n", ret);
+			sock_release(csock);
+			return 7;
+		}
+		printk("accepted\n");
+	}
 
 	return 0;
 }
 
 static int my_open(struct inode *inode, struct file *file)
 {
+	csock = NULL;
 	return 0;
 }
 
 static int my_close(struct inode *inode, struct file *file)
 {
+	if(ssock != NULL){
+		ssock->ops->release(ssock);
+		sock_release(ssock);
+		ssock = NULL;
+		ssock->ops->shutdown(ssock, SHUT_RDWR);
+	}
+	csock->ops->shutdown(csock, SHUT_RDWR);
+	csock->ops->release(csock);
+	sock_release(csock);
+
+	/* csock = NULL; */
 	return 0;
 }
 
@@ -297,17 +347,14 @@ static ssize_t my_write(struct file *filp, const char __user *buff, size_t count
 {
 	int rlen;
 
-	if(wait_event_interruptible(driver_os_wait, datalen >= 0) != 0)	return -ERESTARTSYS;
+	/* if(wait_event_interruptible(driver_os_wait, datalen >= 0) != 0)	return -ERESTARTSYS; */
 
-	rlen = (count < datalen)?count:datalen;
 
-	if(copy_from_user((void *)sockbuf, buff, rlen))	return -EFAULT;
+	if(copy_from_user((void *)sockbuf, buff, count))	return -EFAULT;
 
-	// wake up driver to send file
-	sockbuf_get = 1;
-	wake_up_interruptible(&driver_os_wait);
+	rlen = driver_os_send(csock, sockbuf, count);
 
-	return -1;
+	return rlen;
 }
 
 void vma_open(struct vm_area_struct *vma)

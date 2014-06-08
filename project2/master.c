@@ -14,12 +14,24 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 
-	f_fd = open(argv[1], O_RDONLY);
-	dev_fd = open(DEV_PATH, O_WRONLY);
+	if ((f_fd = open(argv[1], O_RDONLY)) < 0) {
+		perror("file open error");
+	}
+	if ((dev_fd = open(DEV_PATH, O_WRONLY | O_NONBLOCK)) < 0) {
+		perror("device open error");
+	}
 	
 	/* ioctl(dev_fd, 1, NULL);  //master */
 
 	if(strcmp(argv[2], "fcntl") == 0){
+		int ret;
+		if ((ret = ioctl(dev_fd, 0, NULL)) != 0) {
+			fprintf(stderr, "ioctl fail, return %d\n", ret);
+			perror("");
+		}
+		fprintf(stderr, "ioctl success\n");
+
+
 		int s;
 		char buf[512];
 
@@ -34,7 +46,7 @@ int main(int argc, char* argv[])
 			}
 		}
 	}else if(strcmp(argv[2], "mmap") == 0){
-		int f_size, mmap_size, page_size = sysconf(_SC_PAGE_SIZE), f_offset = 0; 
+		int f_size, mmap_size, page_size = sysconf(_SC_PAGE_SIZE);//, f_offset = 0; 
 		void *f_map, *dev_map;
 
 		lseek(f_fd, 0, SEEK_END);
