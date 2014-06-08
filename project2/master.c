@@ -27,7 +27,7 @@ int main(int argc, char* argv[])
 		int ret;
 		if ((ret = ioctl(dev_fd, 0, NULL)) != 0) {
 			fprintf(stderr, "ioctl fail, return %d\n", ret);
-			perror("");
+			return -1;
 		}
 		fprintf(stderr, "ioctl success\n");
 
@@ -64,7 +64,9 @@ int main(int argc, char* argv[])
 		munmap(dev_map, mmap_size);
 	}
 	close(f_fd);
-	close(dev_fd);
+	if (close(dev_fd) != 0) {
+		perror("close device error");
+	}
 
 	return 0;
 	

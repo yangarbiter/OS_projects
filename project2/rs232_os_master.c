@@ -18,7 +18,7 @@ static int my_open(struct inode *inode, struct file *file);
 static int my_close(struct inode *inode, struct file *file);
 /* static ssize_t driver_os_recv(struct socket *csock, char *buf, size_t size); */
 static ssize_t driver_os_send(struct socket *csock, char *buf, size_t size);
-static void driver_os_work_handler(struct work_struct *work);
+/* static void driver_os_work_handler(struct work_struct *work); */
 static int my_mmap(struct file *filp, struct vm_area_struct *vma);
 
 static struct file_operations driver_os_ops = {
@@ -36,12 +36,12 @@ static dev_t devno;
 static struct class *driver_os_cl;
 static struct cdev driver_os_dev;
 static struct workqueue_struct *wq;
-DECLARE_WORK(driver_os_work, driver_os_work_handler);
-DECLARE_WAIT_QUEUE_HEAD(driver_os_wait);
+/* DECLARE_WORK(driver_os_work, driver_os_work_handler); */
+/* DECLARE_WAIT_QUEUE_HEAD(driver_os_wait); */
 static struct socket *ssock;
 static char sockbuf[4096];
 volatile int flag; /* 1 for unread */
-static int datalen;
+/* static int datalen; */
 struct socket *csock = NULL;
 
 static int __init initialize(void)
@@ -88,8 +88,8 @@ static int __init initialize(void)
 
 	return 0;
 
-create_workqueue_failed:
-	cdev_del(&driver_os_dev);
+/* create_workqueue_failed: */
+/* 	cdev_del(&driver_os_dev); */
 cdev_add_failed:
 	device_destroy(driver_os_cl, devno);
 device_create_failed:
@@ -171,7 +171,7 @@ static ssize_t driver_os_send(struct socket *csock, char *buf, size_t size)
 	return ret;
 }
 
-
+/*
 static void driver_os_work_handler(struct work_struct *work)
 {
 	printk("handler start");
@@ -250,7 +250,7 @@ static void driver_os_work_handler(struct work_struct *work)
 	sock_release(ssock);
 	ssock = NULL;
 }
-
+*/
 static long my_ioctl(struct file *file,unsigned int ioctl_num, unsigned long ioctl_param)
 {
 	// master 無需ioctl
@@ -322,14 +322,14 @@ static int my_close(struct inode *inode, struct file *file)
 	if(ssock != NULL){
 		ssock->ops->release(ssock);
 		sock_release(ssock);
+		/* ssock->ops->shutdown(ssock, SHUT_RDWR); */
 		ssock = NULL;
-		ssock->ops->shutdown(ssock, SHUT_RDWR);
 	}
 	csock->ops->shutdown(csock, SHUT_RDWR);
 	csock->ops->release(csock);
 	sock_release(csock);
+	csock = NULL;
 
-	/* csock = NULL; */
 	return 0;
 }
 
