@@ -259,7 +259,6 @@ static int my_close(struct inode *inode, struct file *file)
 
 	gettime (&ed_s, &ed_ns);
 	ms = ed_s - st_s;
-	printk ("ed_s - st_s = %d\n", ms);
 	ms *= 1000;
 	ms += (ed_ns - st_ns) / 1000000;
 
