@@ -322,11 +322,26 @@ static struct vm_operations_struct remap_vm_ops = {
 
 static int my_mmap(struct file * filp, struct vm_area_struct *vma)
 {
-	if (remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
-				vma->vm_end - vma->vm_start,
-				vma->vm_page_prot))
-		return -EAGAIN;
+	int readbyte;
+	static char *readp = sockbuf;
+	static int remain = 0, count=4096;
+
+	if (remain == 0) {
+		remain = driver_os_recv (csock, sockbuf, 4096);
+		sockbuf[remain] = '\0';
+		readp = sockbuf;
+	}
+
+	readbyte = (remain <= count ? remain : count);
+
+	readp += readbyte;
+	remain -= readbyte;
+
+	/*if (remap_pfn_range(vma, vma->vm_start, phys_mem,
+				vma->vm_end - vma->vm_start, vma->vm_page_prot))
+		return -EAGAIN;*/
 	vma->vm_ops = &remap_vm_ops;
+	vma->vm_private_data = readp;
 	vma_open(vma);
 	return 0;
 }

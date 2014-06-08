@@ -19,7 +19,7 @@ static int my_close(struct inode *inode, struct file *file);
 /* static ssize_t driver_os_recv(struct socket *csock, char *buf, size_t size); */
 static ssize_t driver_os_send(struct socket *csock, char *buf, size_t size);
 /* static void driver_os_work_handler(struct work_struct *work); */
-static int my_mmap(struct file *filp, struct vm_area_struct *vma);
+static int my_mmap(struct file *file, struct vm_area_struct *vma);
 
 static struct file_operations driver_os_ops = {
 	.owner = THIS_MODULE,
@@ -35,11 +35,11 @@ static struct file_operations driver_os_ops = {
 static dev_t devno;
 static struct class *driver_os_cl;
 static struct cdev driver_os_dev;
-static struct workqueue_struct *wq;
+//static struct workqueue_struct *wq;
 /* DECLARE_WORK(driver_os_work, driver_os_work_handler); */
 /* DECLARE_WAIT_QUEUE_HEAD(driver_os_wait); */
 static struct socket *ssock;
-static char sockbuf[4096];
+static char * sockbuf;
 volatile int flag; /* 1 for unread */
 /* static int datalen; */
 struct socket *csock = NULL;
@@ -306,6 +306,10 @@ static long my_ioctl(struct file *file,unsigned int ioctl_num, unsigned long ioc
 			return 7;
 		}
 		printk("accepted\n");
+	} else if(ioctl_num == 1) {
+		int rlen;
+		rlen = driver_os_send(csock, file->private_data, 4096);
+		printk("sending data\n");
 	}
 
 	return 0;
@@ -314,6 +318,8 @@ static long my_ioctl(struct file *file,unsigned int ioctl_num, unsigned long ioc
 static int my_open(struct inode *inode, struct file *file)
 {
 	csock = NULL;
+	sockbuf = (char *)get_zeroed_page(GFP_KERNEL);
+	file->private_data = sockbuf;
 	return 0;
 }
 
@@ -328,6 +334,8 @@ static int my_close(struct inode *inode, struct file *file)
 	csock->ops->shutdown(csock, SHUT_RDWR);
 	csock->ops->release(csock);
 	sock_release(csock);
+	free_page((unsigned long)sockbuf);
+	file->private_data = NULL;
 	csock = NULL;
 
 	return 0;
@@ -362,6 +370,18 @@ void vma_open(struct vm_area_struct *vma)
 	printk("VMA open, virt %lx, phys %lx\n", vma->vm_start, vma->vm_pgoff << PAGE_SHIFT);
 } 
 
+static int mmap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+{
+	struct page *page;
+	char* buf;
+
+	buf = (char *)vma->vm_private_data;
+	page = virt_to_page(buf);
+	get_page(page);
+	vmf->page = page;
+	return 0;
+}
+
 void vma_close(struct vm_area_struct *vma)
 {
 	printk("VMA close.\n");
@@ -369,16 +389,15 @@ void vma_close(struct vm_area_struct *vma)
 
 static struct vm_operations_struct remap_vm_ops = {
 	.open = vma_open,
-	.close = vma_close
+	.close = vma_close, 
+	.fault = mmap_fault,
 };
 
-static int my_mmap(struct file * filp, struct vm_area_struct *vma)
+static int my_mmap(struct file * file, struct vm_area_struct *vma)
 {
-	if (remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
-				vma->vm_end - vma->vm_start,
-				vma->vm_page_prot))
-		return -EAGAIN;
 	vma->vm_ops = &remap_vm_ops;
+	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
+	vma->vm_private_data = file->private_data;
 	vma_open(vma);
 	return 0;
 }
