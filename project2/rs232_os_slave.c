@@ -204,6 +204,7 @@ struct socket *csock;
 static long my_ioctl(struct file *file,unsigned int ioctl_num, unsigned long ioctl_param)
 {
 	long ret = -EINVAL;
+	int readn;
 	char ip[16];
 	struct sockaddr_in dest;
 
@@ -232,23 +233,24 @@ static long my_ioctl(struct file *file,unsigned int ioctl_num, unsigned long ioc
 			break;
 		case 1 :
 			printk("in ioctl 1\n");
+			readn = 0;
 			while(1){
 				int readbyte = 0;
 
-				readbyte = driver_os_recv (csock, sockbuf+fileSize, 4096);
+				readbyte = driver_os_recv (csock, sockbuf+readn, 4096);
 
 				if(readbyte < 0){
 					printk("recv failed\n");
 					goto socket_connect_failed;
 				}
 
-				fileSize += readbyte;
+				readn += readbyte;
 
 				printk("readbyte: %d\n", readbyte);
 
 				if(readbyte == 0) break;
 			}
-			sockbuf[fileSize] = '\0';
+			sockbuf[readn] = '\0';
 			break;
 		case 3 :
 			/* get fileSize */
