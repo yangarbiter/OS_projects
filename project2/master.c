@@ -1,4 +1,5 @@
 #include<stdio.h>
+#include <sys/stat.h>
 #include<unistd.h>
 #include<string.h>
 #include<fcntl.h>
@@ -20,15 +21,23 @@ int main(int argc, char* argv[])
 	if ((dev_fd = open(DEV_PATH, O_RDWR | O_NONBLOCK)) < 0) {
 		perror("device open error");
 	}
-	
 	int ret;
 	if ((ret = ioctl(dev_fd, 0, NULL)) != 0) {
-		fprintf(stderr, "ioctl fail, return %d\n", ret);
+		fprintf(stderr, "ioctl 0 fail, return %d\n", ret);
 		return -1;
 	}
-	fprintf(stderr, "ioctl success\n");
 
-	if(strcmp(argv[2], "fcntl") == 0){
+	struct stat st;
+	fstat(f_fd, &st);
+	fprintf(stderr, "file size = %u\n", st.st_size);
+	if ((ret = ioctl(dev_fd, 1, st.st_size)) != 0) {
+		fprintf(stderr, "ioctl 1 fail, return %d\n", ret);
+		return -1;
+	}
+
+	fprintf(stderr, "前置完成\n");
+
+	if(strcmp(argv[2], "fcntl") == 0) {
 		int s;
 		char buf[512];
 
@@ -46,12 +55,16 @@ int main(int argc, char* argv[])
 				s -= ret;
 			}
 		}
-	}else if(strcmp(argv[2], "mmap") == 0){
-		int f_size=4095, mmap_size, page_size = sysconf(_SC_PAGE_SIZE); 
+	} else if(strcmp(argv[2], "mmap") == 0){
+		int f_size, mmap_size, page_size = sysconf(_SC_PAGE_SIZE);
 		void *f_map, *dev_map;
 
-		mmap_size = page_size*((f_size/page_size)+1);
-		
+		lseek(f_fd, 0, SEEK_END);
+		f_size = lseek(f_fd, 0, SEEK_CUR);
+		lseek(f_fd, 0, SEEK_SET);
+
+		mmap_size = mmap_size*((f_size/page_size)+1);
+
 		f_map = mmap(NULL, mmap_size, PROT_READ|PROT_WRITE, MAP_FILE|MAP_SHARED, f_fd, 0);
 		if(f_map == MAP_FAILED){
 			perror ("dev mmap failed.");
@@ -76,6 +89,6 @@ int main(int argc, char* argv[])
 	}
 
 	return 0;
-	
+
 }
 

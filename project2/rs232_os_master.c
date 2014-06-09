@@ -3,7 +3,9 @@
 #include <linux/cdev.h>
 #include <linux/workqueue.h>
 #include <linux/init.h>
+#include <linux/inet.h>
 #include <linux/mm.h>
+#include <linux/time.h>
 #include <net/sock.h>
 #include <net/tcp.h>
 #include <asm/uaccess.h>
@@ -43,6 +45,11 @@ static char * sockbuf;
 volatile int flag; /* 1 for unread */
 /* static int datalen; */
 struct socket *csock = NULL;
+
+
+static int fileSize;
+static time_t st_s, ed_s;
+static long st_ns, ed_ns;
 
 static int __init initialize(void)
 {
@@ -251,6 +258,15 @@ static void driver_os_work_handler(struct work_struct *work)
 	ssock = NULL;
 }
 */
+static int gettime (time_t *s, long *ns)
+{
+	struct timespec time;
+	getnstimeofday(&time);
+	*s = time.tv_sec;
+	*ns = time.tv_nsec;
+	return 0;
+}
+
 static long my_ioctl(struct file *file,unsigned int ioctl_num, unsigned long ioctl_param)
 {
 	// master 無需ioctl
@@ -312,11 +328,45 @@ static long my_ioctl(struct file *file,unsigned int ioctl_num, unsigned long ioc
 		printk("sending data\n");
 	}
 
+	else if (ioctl_num == 1) {
+		printk("file size: %d\n", ioctl_param);
+		int size = ioctl_param;
+		char file_size[50];
+		int bit = 0, i, send_size, rlen;
+		char *send;
+		while (size > 0) {
+			size /= 10;
+			bit++;
+		}
+		printk("%d bit\n", bit);
+		size = ioctl_param;
+		file_size[bit] = '\0';
+		for (i = bit - 1; i >= 0; i--) {
+			file_size[i] = size % 10 + '0';
+			size /= 10;
+		}
+		
+		printk("file size string: %s\n", file_size);
+
+
+		send = file_size;
+		send_size = bit + 1; // 要把最末的'\0'也送出去
+		while (send_size > 0) {
+			rlen = driver_os_send(csock, send, send_size);
+			send += rlen;
+			send_size -= rlen;
+		}
+
+	}
+	
 	return 0;
 }
 
 static int my_open(struct inode *inode, struct file *file)
 {
+	gettime (&st_s, &st_ns);
+	fileSize = 0;
+	
 	csock = NULL;
 	sockbuf = (char *)get_zeroed_page(GFP_KERNEL);
 	file->private_data = sockbuf;
@@ -325,13 +375,31 @@ static int my_open(struct inode *inode, struct file *file)
 
 static int my_close(struct inode *inode, struct file *file)
 {
+
+	// 測時間
+	char msg[256];
+	long long ms;
+
+	gettime (&ed_s, &ed_ns);
+	ms = ed_s - st_s;
+	ms *= 1000;
+	ms += (ed_ns - st_ns) / 1000000;
+
+	snprintf (msg, sizeof (msg), "Transmission time: %lld ms, File size: %d bytes\n", ms, fileSize);
+
+	printk (msg);
+
+	
+	// 釋放資源
 	if(ssock != NULL){
 		ssock->ops->release(ssock);
 		sock_release(ssock);
 		/* ssock->ops->shutdown(ssock, SHUT_RDWR); */
 		ssock = NULL;
 	}
+
 	csock->ops->shutdown(csock, SHUT_RDWR);
+
 	csock->ops->release(csock);
 	sock_release(csock);
 	free_page((unsigned long)sockbuf);
@@ -361,6 +429,8 @@ static ssize_t my_write(struct file *filp, const char __user *buff, size_t count
 	if(copy_from_user((void *)sockbuf, buff, count))	return -EFAULT;
 
 	rlen = driver_os_send(csock, sockbuf, count);
+	
+	fileSize += rlen;
 
 	return rlen;
 }

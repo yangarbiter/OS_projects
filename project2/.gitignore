@@ -8,3 +8,4 @@ master
 slave
 modules.order
 Module.symvers
+miniex.c
