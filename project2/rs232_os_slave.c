@@ -45,6 +45,7 @@ static char sockbuf[4096];
 static time_t st_s, ed_s;
 static long st_ns, ed_ns;
 static int fileSize;
+static int firstRead;
 
 static int __init initialize(void)
 {
@@ -219,7 +220,7 @@ static long my_ioctl(struct file *file,unsigned int ioctl_num, unsigned long ioc
 			dest.sin_port = htons (8888);
 			dest.sin_addr.s_addr = in_aton (ip);
 
-			if ((ret = csock->ops->connect (csock, (struct sockaddr*) &dest, sizeof (struct sockaddr_in), !O_NONBLOCK)) < 0) {
+			if ((ret = csock->ops->connect (csock, (struct sockaddr*) &dest, sizeof (struct sockaddr_in), 0)) < 0) {
 				printk (KERN_ERR "socket connect failed, return %ld\n", ret);
 				goto socket_connect_failed;
 			}
@@ -249,6 +250,7 @@ static int my_open(struct inode *inode, struct file *file)
 {
 	gettime (&st_s, &st_ns);
 	fileSize = 0;
+	firstRead = 1;
 	return 0;
 }
 
@@ -279,6 +281,33 @@ static ssize_t my_read(struct file *filp, char __user *buff, size_t count, loff_
 	static char *readp = sockbuf;
 	static int remain = 0;
 
+	/* read file size */
+	if (firstRead == 1) {
+		int i, flag = 0;
+		int ret;
+
+		remain = 0;
+		while (flag == 0) {
+			remain += driver_os_recv (csock, sockbuf + remain, 4096 - remain);
+
+			for (i = 0 ; i < remain ; i++) {
+				if (sockbuf[i] == '\0') {
+					if ((ret = kstrtol (sockbuf, 10, &fileSize)) != 0) {
+						printk (KERN_ERR "error receiving file size, ksrttol return %d\n", ret);
+						return ret;
+					}
+
+					firstRead = 0;
+					flag = 1;
+					remain -= i + 1;
+					readp += i + 1;
+
+					break;
+				}
+			}
+		}
+	}
+
 	if (remain == 0) {
 		remain = driver_os_recv (csock, sockbuf, 4096);
 		sockbuf[remain] = '\0';
@@ -293,8 +322,6 @@ static ssize_t my_read(struct file *filp, char __user *buff, size_t count, loff_
 
 	readp += readbyte;
 	remain -= readbyte;
-
-	fileSize += readbyte;
 
 	return readbyte;
 }
