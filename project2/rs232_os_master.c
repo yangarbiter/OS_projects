@@ -328,12 +328,12 @@ static long my_ioctl(struct file *file,unsigned int ioctl_num, unsigned long ioc
 		printk("sending data\n");
 	}
 
-	else if (ioctl_num == 1) {
-		printk("file size: %d\n", ioctl_param);
-		int size = ioctl_param;
+	else if (ioctl_num == 3) {
+		int size = (int) ioctl_param;
 		char file_size[50];
 		int bit = 0, i, send_size, rlen;
 		char *send;
+		printk("file size: %lu\n", ioctl_param);
 		while (size > 0) {
 			size /= 10;
 			bit++;
