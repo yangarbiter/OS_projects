@@ -16,8 +16,12 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 
-	f_fd = open(argv[1], O_WRONLY | O_CREAT, 0644);
-	dev_fd = open(DEV_PATH, O_RDONLY);
+	if ((f_fd = open(argv[1], O_RDWR | O_CREAT, 0644)) < 0) {
+		perror("file open error");
+	}
+	if ((dev_fd = open(DEV_PATH, O_RDWR)) < 0) {
+		perror("device open error");
+	}
 
 	ioctl(dev_fd, 0, argv[3]);  //slave pass ip and bulid connection
 
@@ -42,19 +46,28 @@ int main(int argc, char* argv[])
 			}
 		}
 	}else if(strcmp(argv[2], "mmap") == 0){
-		int f_size=4096, mmap_size, page_size = sysconf(_SC_PAGE_SIZE); 
+		int f_size=4095, mmap_size, page_size = sysconf(_SC_PAGE_SIZE); 
 		void *f_map, *dev_map;
 
 		mmap_size = page_size*((f_size/page_size)+1);
 		
 		f_map = mmap(NULL, mmap_size, PROT_READ|PROT_WRITE, MAP_FILE|MAP_SHARED, f_fd, 0);
+		if(f_map == MAP_FAILED){
+			perror ("dev mmap failed.");
+			return 1;
+		}
 		dev_map = mmap(NULL, mmap_size, PROT_READ|PROT_WRITE, MAP_FILE|MAP_SHARED, dev_fd, 0);
+		if(dev_map == MAP_FAILED){
+			perror ("dev mmap failed.");
+			return 1;
+		}
+
+		ioctl(dev_fd, 1, NULL);  //receive data
 
 		memcpy(f_map, dev_map, mmap_size);
 
 		//munmap(f_map, mmap_size);
 		//munmap(dev_map, mmap_size);
-
 	}
 
 	close(f_fd);

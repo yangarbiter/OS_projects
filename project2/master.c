@@ -63,7 +63,7 @@ int main(int argc, char* argv[])
 		f_size = lseek(f_fd, 0, SEEK_CUR);
 		lseek(f_fd, 0, SEEK_SET);
 
-		mmap_size = mmap_size*((f_size/page_size)+1);
+		mmap_size = page_size*((f_size/page_size)+1);
 
 		f_map = mmap(NULL, mmap_size, PROT_READ|PROT_WRITE, MAP_FILE|MAP_SHARED, f_fd, 0);
 		if(f_map == MAP_FAILED){
@@ -80,8 +80,8 @@ int main(int argc, char* argv[])
 
 		ioctl(dev_fd, 1, NULL);  //send data
 
-		//munmap(f_map, mmap_size);
-		//munmap(dev_map, mmap_size);
+		munmap(f_map, mmap_size);
+		munmap(dev_map, mmap_size);
 	}
 	close(f_fd);
 	if (close(dev_fd) != 0) {

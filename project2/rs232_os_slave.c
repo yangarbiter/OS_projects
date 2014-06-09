@@ -22,6 +22,7 @@ static ssize_t driver_os_recv(struct socket *csock, char *buf, size_t size);
 // static ssize_t driver_os_send(struct socket *csock, char *buf, size_t size);
 // static void driver_os_work_handler(struct work_struct *work);
 static int my_mmap(struct file *filp, struct vm_area_struct *vma);
+char* readp;
 
 static struct file_operations driver_os_ops = {
 	.owner = THIS_MODULE,
@@ -40,7 +41,7 @@ static struct cdev driver_os_dev;
 // static struct workqueue_struct *wq;
 // DECLARE_WAIT_QUEUE_HEAD(driver_os_wait);
 // static struct socket *ssock;
-static char sockbuf[4096];
+static char * sockbuf;
 // static int datalen;
 static time_t st_s, ed_s;
 static long st_ns, ed_ns;
@@ -228,6 +229,28 @@ static long my_ioctl(struct file *file,unsigned int ioctl_num, unsigned long ioc
 			// queue_work(wq, &driver_os_slave_work);
 
 			break;
+		case 1 :{
+			printk("in ioctl 1\n");
+			while(1){
+				int readbyte = 0;
+
+				readbyte = driver_os_recv (csock, sockbuf+fileSize, 4096);
+
+				if(readbyte < 0){
+					printk("recv failed\n");
+					goto socket_connect_failed;
+				}
+
+				fileSize += readbyte;
+
+				printk("readbyte: %d\n", readbyte);
+
+				if(readbyte == 0) break;
+			}
+			sockbuf[fileSize] = '\0';
+			break;
+		}
+
 		default:
 			break;
 	}
@@ -251,6 +274,9 @@ static int my_open(struct inode *inode, struct file *file)
 	gettime (&st_s, &st_ns);
 	fileSize = 0;
 	firstRead = 1;
+	sockbuf = (char *)get_zeroed_page(GFP_KERNEL);
+	file->private_data = sockbuf;
+	readp = sockbuf;
 	return 0;
 }
 
@@ -263,6 +289,9 @@ static int my_close(struct inode *inode, struct file *file)
 	ms = ed_s - st_s;
 	ms *= 1000;
 	ms += (ed_ns - st_ns) / 1000000;
+
+	free_page((unsigned long)sockbuf);
+	file->private_data = NULL;
 
 	snprintf (msg, sizeof (msg), "Transmission time: %lld ms, File size: %d bytes\n", ms, fileSize);
 
@@ -278,7 +307,6 @@ static loff_t my_llseek(struct file *filp, loff_t off, int whence)
 static ssize_t my_read(struct file *filp, char __user *buff, size_t count, loff_t *offp)
 {
 	int readbyte;
-	static char *readp = sockbuf;
 	static int remain = 0;
 
 	/* read file size */
@@ -336,39 +364,36 @@ void vma_open(struct vm_area_struct *vma)
 	printk("VMA open, virt %lx, phys %lx\n", vma->vm_start, vma->vm_pgoff << PAGE_SHIFT);
 } 
 
+static int mmap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+{
+	struct page *page;
+	char* buf;
+
+	printk("in mmap_fault\n");
+
+	buf = (char *)vma->vm_private_data;
+	page = virt_to_page(buf);
+	get_page(page);
+	vmf->page = page;
+	return 0;
+}
+
 void vma_close(struct vm_area_struct *vma)
 {
 	printk("VMA close.\n");
 }
 
-
 static struct vm_operations_struct remap_vm_ops = {
 	.open = vma_open,
-	.close = vma_close
+	.close = vma_close, 
+	.fault = mmap_fault,
 };
 
-static int my_mmap(struct file * filp, struct vm_area_struct *vma)
+static int my_mmap(struct file * file, struct vm_area_struct *vma)
 {
-	int readbyte;
-	static char *readp = sockbuf;
-	static int remain = 0, count=4096;
-
-	if (remain == 0) {
-		remain = driver_os_recv (csock, sockbuf, 4096);
-		sockbuf[remain] = '\0';
-		readp = sockbuf;
-	}
-
-	readbyte = (remain <= count ? remain : count);
-
-	readp += readbyte;
-	remain -= readbyte;
-
-	/*if (remap_pfn_range(vma, vma->vm_start, phys_mem,
-				vma->vm_end - vma->vm_start, vma->vm_page_prot))
-		return -EAGAIN;*/
 	vma->vm_ops = &remap_vm_ops;
-	vma->vm_private_data = readp;
+	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
+	vma->vm_private_data = file->private_data;
 	vma_open(vma);
 	return 0;
 }

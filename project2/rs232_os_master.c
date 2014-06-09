@@ -445,6 +445,8 @@ static int mmap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	struct page *page;
 	char* buf;
 
+	printk("in mmap_fault\n");
+
 	buf = (char *)vma->vm_private_data;
 	page = virt_to_page(buf);
 	get_page(page);
