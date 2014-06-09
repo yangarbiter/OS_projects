@@ -25,8 +25,6 @@ int main(int argc, char* argv[])
 
 	ioctl(dev_fd, 0, argv[3]);  //slave pass ip and bulid connection
 
-	printf("%d %d\n", f_fd, dev_fd);
-
 	if(strcmp(argv[2], "fcntl") == 0){
 		int s;
 		char buf[512];
@@ -50,8 +48,10 @@ int main(int argc, char* argv[])
 		void *f_map, *dev_map;
 
 		/* get f_size */
-		ioctl (dev_fd, 3, &f_size);
+		//ioctl (dev_fd, 3, &f_size);
+		f_size = 4096;
 
+		ftruncate(f_fd, f_size);
 		mmap_size = page_size*((f_size/page_size)+1);
 		
 		f_map = mmap(NULL, mmap_size, PROT_READ|PROT_WRITE, MAP_FILE|MAP_SHARED, f_fd, 0);
