@@ -46,8 +46,11 @@ int main(int argc, char* argv[])
 			}
 		}
 	}else if(strcmp(argv[2], "mmap") == 0){
-		int f_size=4095, mmap_size, page_size = sysconf(_SC_PAGE_SIZE); 
+		int f_size, mmap_size, page_size = sysconf(_SC_PAGE_SIZE); 
 		void *f_map, *dev_map;
+
+		/* get f_size */
+		ioctl (dev_fd, 3, &f_size);
 
 		mmap_size = page_size*((f_size/page_size)+1);
 		

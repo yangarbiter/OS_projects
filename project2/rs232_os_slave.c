@@ -230,7 +230,7 @@ static long my_ioctl(struct file *file,unsigned int ioctl_num, unsigned long ioc
 			// queue_work(wq, &driver_os_slave_work);
 
 			break;
-		case 1 :{
+		case 1 :
 			printk("in ioctl 1\n");
 			while(1){
 				int readbyte = 0;
@@ -250,11 +250,17 @@ static long my_ioctl(struct file *file,unsigned int ioctl_num, unsigned long ioc
 			}
 			sockbuf[fileSize] = '\0';
 			break;
-		}
+		case 3 :
+			/* get fileSize */
+			set_fileSize_from_socket ();
+			copy_to_user ((int*) ioctl_param, &fileSize, sizeof (int));
+			break;
 
 		default:
 			break;
 	}
+
+	return 0;
 
 socket_create_failed :
 socket_connect_failed :

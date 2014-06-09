@@ -29,7 +29,7 @@ int main(int argc, char* argv[])
 
 	struct stat st;
 	fstat(f_fd, &st);
-	fprintf(stderr, "file size = %u\n", st.st_size);
+	fprintf(stderr, "file size = %u\n", (unsigned int) st.st_size);
 	if ((ret = ioctl(dev_fd, 1, st.st_size)) != 0) {
 		fprintf(stderr, "ioctl 1 fail, return %d\n", ret);
 		return -1;
