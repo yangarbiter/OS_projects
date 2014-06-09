@@ -22,6 +22,7 @@ static ssize_t driver_os_recv(struct socket *csock, char *buf, size_t size);
 // static ssize_t driver_os_send(struct socket *csock, char *buf, size_t size);
 // static void driver_os_work_handler(struct work_struct *work);
 static int my_mmap(struct file *filp, struct vm_area_struct *vma);
+static int set_fileSize_from_socket (void);
 char* readp;
 
 static struct file_operations driver_os_ops = {
@@ -304,6 +305,46 @@ static loff_t my_llseek(struct file *filp, loff_t off, int whence)
 	return -1;
 }
 
+static int set_fileSize_from_socket (void) {
+	char buf[64];
+	int readn, recv;
+	int ret;
+
+	readn = 0;
+	fileSize = 0;
+
+	while (1) {
+		recv = driver_os_recv (csock, buf + readn, 1);
+		if (recv > 0) {
+			if (buf[readn] == '\0') {
+				if ((ret = kstrtoint (buf, 10, &fileSize)) != 0) {
+					printk (KERN_ERR "error receiving file size, kstrtoint return %d\n", ret);
+					goto error;
+				}
+				else {
+					break;
+				}
+			}
+			readn++;
+		}
+		else if (recv == 0) {
+			printk (KERN_ERR "Connection closed by server\n");
+			ret = -1;
+			goto error;
+		}
+		else {
+			ret = recv;
+			printk (KERN_ERR "driver_os_recv error, return %d\n", ret);
+			goto error;
+		}
+	}
+
+	return 0;
+
+error :
+	return ret;
+}
+
 static ssize_t my_read(struct file *filp, char __user *buff, size_t count, loff_t *offp)
 {
 	int readbyte;
@@ -311,29 +352,12 @@ static ssize_t my_read(struct file *filp, char __user *buff, size_t count, loff_
 
 	/* read file size */
 	if (firstRead == 1) {
-		int i, flag = 0;
 		int ret;
-
-		remain = 0;
-		while (flag == 0) {
-			remain += driver_os_recv (csock, sockbuf + remain, 4096 - remain);
-
-			for (i = 0 ; i < remain ; i++) {
-				if (sockbuf[i] == '\0') {
-					if ((ret = kstrtoint (sockbuf, 10, &fileSize)) != 0) {
-						printk (KERN_ERR "error receiving file size, kstrtoint return %d\n", ret);
-						return ret;
-					}
-
-					firstRead = 0;
-					flag = 1;
-					remain -= i + 1;
-					readp += i + 1;
-
-					break;
-				}
-			}
+		if ((ret = set_fileSize_from_socket ()) != 0) {
+			printk (KERN_ERR "set_fileSize_from_socket error, return %d\n", ret);
+			return ret;
 		}
+		firstRead = 0;
 	}
 
 	if (remain == 0) {
