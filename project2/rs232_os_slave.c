@@ -320,8 +320,8 @@ static ssize_t my_read(struct file *filp, char __user *buff, size_t count, loff_
 
 			for (i = 0 ; i < remain ; i++) {
 				if (sockbuf[i] == '\0') {
-					if ((ret = kstrtol (sockbuf, 10, &fileSize)) != 0) {
-						printk (KERN_ERR "error receiving file size, ksrttol return %d\n", ret);
+					if ((ret = kstrtoint (sockbuf, 10, &fileSize)) != 0) {
+						printk (KERN_ERR "error receiving file size, kstrtoint return %d\n", ret);
 						return ret;
 					}
 
