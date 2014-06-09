@@ -3,7 +3,9 @@
 #include <linux/cdev.h>
 #include <linux/workqueue.h>
 #include <linux/init.h>
+#include <linux/inet.h>
 #include <linux/mm.h>
+#include <linux/time.h>
 #include <net/sock.h>
 #include <net/tcp.h>
 #include <asm/uaccess.h>
@@ -43,6 +45,11 @@ static char sockbuf[4096];
 volatile int flag; /* 1 for unread */
 /* static int datalen; */
 struct socket *csock = NULL;
+
+
+static int fileSize;
+static time_t st_s, ed_s;
+static long st_ns, ed_ns;
 
 static int __init initialize(void)
 {
@@ -251,6 +258,15 @@ static void driver_os_work_handler(struct work_struct *work)
 	ssock = NULL;
 }
 */
+static int gettime (time_t *s, long *ns)
+{
+	struct timespec time;
+	getnstimeofday(&time);
+	*s = time.tv_sec;
+	*ns = time.tv_nsec;
+	return 0;
+}
+
 static long my_ioctl(struct file *file,unsigned int ioctl_num, unsigned long ioctl_param)
 {
 	// master 無需ioctl
@@ -344,19 +360,42 @@ static long my_ioctl(struct file *file,unsigned int ioctl_num, unsigned long ioc
 
 static int my_open(struct inode *inode, struct file *file)
 {
+	gettime (&st_s, &st_ns);
+	fileSize = 0;
+	
 	csock = NULL;
+
+
 	return 0;
 }
 
 static int my_close(struct inode *inode, struct file *file)
 {
+
+	// 測時間
+	char msg[256];
+	long long ms;
+
+	gettime (&ed_s, &ed_ns);
+	ms = ed_s - st_s;
+	ms *= 1000;
+	ms += (ed_ns - st_ns) / 1000000;
+
+	snprintf (msg, sizeof (msg), "Transmission time: %lld ms, File size: %d bytes\n", ms, fileSize);
+
+	printk (msg);
+
+	
+	// 釋放資源
 	if(ssock != NULL){
 		ssock->ops->release(ssock);
 		sock_release(ssock);
 		/* ssock->ops->shutdown(ssock, SHUT_RDWR); */
 		ssock = NULL;
 	}
+
 	csock->ops->shutdown(csock, SHUT_RDWR);
+
 	csock->ops->release(csock);
 	sock_release(csock);
 	csock = NULL;
@@ -384,6 +423,8 @@ static ssize_t my_write(struct file *filp, const char __user *buff, size_t count
 	if(copy_from_user((void *)sockbuf, buff, count))	return -EFAULT;
 
 	rlen = driver_os_send(csock, sockbuf, count);
+	
+	fileSize += rlen;
 
 	return rlen;
 }
