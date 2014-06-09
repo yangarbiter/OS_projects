@@ -308,6 +308,37 @@ static long my_ioctl(struct file *file,unsigned int ioctl_num, unsigned long ioc
 		printk("accepted\n");
 	}
 
+	else if (ioctl_num == 1) {
+		printk("file size: %d\n", ioctl_param);
+		int size = ioctl_param;
+		char file_size[50];
+		int bit = 0, i, send_size, rlen;
+		char *send;
+		while (size > 0) {
+			size /= 10;
+			bit++;
+		}
+		printk("%d bit\n", bit);
+		size = ioctl_param;
+		file_size[bit] = '\0';
+		for (i = bit - 1; i >= 0; i--) {
+			file_size[i] = size % 10 + '0';
+			size /= 10;
+		}
+		
+		printk("file size string: %s\n", file_size);
+
+
+		send = file_size;
+		send_size = bit + 1; // 要把最末的'\0'也送出去
+		while (send_size > 0) {
+			rlen = driver_os_send(csock, send, send_size);
+			send += rlen;
+			send_size -= rlen;
+		}
+
+	}
+	
 	return 0;
 }
 
