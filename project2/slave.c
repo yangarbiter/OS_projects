@@ -48,8 +48,7 @@ int main(int argc, char* argv[])
 		void *f_map, *dev_map;
 
 		/* get f_size */
-		//ioctl (dev_fd, 3, &f_size);
-		f_size = 4096;
+		ioctl (dev_fd, 3, &f_size);
 
 		ftruncate(f_fd, f_size);
 		mmap_size = page_size*((f_size/page_size)+1);
@@ -69,8 +68,8 @@ int main(int argc, char* argv[])
 
 		memcpy(f_map, dev_map, mmap_size);
 
-		//munmap(f_map, mmap_size);
-		//munmap(dev_map, mmap_size);
+		munmap(f_map, mmap_size);
+		munmap(dev_map, mmap_size);
 	}
 
 	close(f_fd);
