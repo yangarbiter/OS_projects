@@ -254,6 +254,7 @@ static long my_ioctl(struct file *file,unsigned int ioctl_num, unsigned long ioc
 			break;
 		case 3 :
 			/* get fileSize */
+			firstRead = 0;
 			set_fileSize_from_socket ();
 			copy_to_user ((int*) ioctl_param, &fileSize, sizeof (int));
 			break;

@@ -43,8 +43,7 @@ int main(int argc, char* argv[])
 				s -= ret;
 			}
 		}
-	}
-	else if (strcmp (argv[2], "mmap") == 0) {
+	}else if (strcmp (argv[2], "mmap") == 0) {
 		int f_size, mmap_size, page_size = sysconf(_SC_PAGE_SIZE); 
 		char *writep;
 		int readn, readn_total;
@@ -62,7 +61,7 @@ int main(int argc, char* argv[])
 			return 1;
 		}
 
-		writep = f_map;
+		writep = (char *)f_map;
 		readn_total = 0;
 		while (readn_total < f_size) {
 			readn = read (dev_fd, writep + readn_total, 512);

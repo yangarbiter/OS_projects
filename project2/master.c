@@ -55,7 +55,29 @@ int main(int argc, char* argv[])
 				s -= ret;
 			}
 		}
-	} else if(strcmp(argv[2], "mmap") == 0){
+	}else if (strcmp (argv[2], "mmap") == 0) {
+		int f_size, mmap_size, page_size = sysconf(_SC_PAGE_SIZE), sended; 
+		void *f_map;
+
+		lseek(f_fd, 0, SEEK_END);
+		f_size = lseek(f_fd, 0, SEEK_CUR);
+		lseek(f_fd, 0, SEEK_SET);
+
+		mmap_size = page_size*((f_size/page_size)+1);
+
+		f_map = mmap(NULL, mmap_size, PROT_READ|PROT_WRITE, MAP_FILE|MAP_SHARED, f_fd, 0);
+		if(f_map == MAP_FAILED){
+			perror ("dev mmap failed.");
+			return 1;
+		}
+
+		sended = 0;
+		while (sended < f_size) {
+			sended += write(dev_fd, f_map + sended, f_size-sended);
+		}
+
+		munmap(f_map, mmap_size);
+	} else if(strcmp(argv[2], "devmmap") == 0){
 		int f_size, mmap_size, page_size = sysconf(_SC_PAGE_SIZE), sended=0;
 		void *f_map, *dev_map;
 
