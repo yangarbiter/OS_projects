@@ -73,7 +73,7 @@ int main(int argc, char* argv[])
 
 		sended = 0;
 		while (sended < f_size) {
-			sended += write(dev_fd, f_map + sended, f_size-sended);
+			sended += write(dev_fd, f_map + sended, (f_size - sended < 512) ? (f_size - sended) : 512);
 		}
 
 		munmap(f_map, mmap_size);
