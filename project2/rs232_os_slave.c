@@ -257,7 +257,18 @@ static long my_ioctl(struct file *file,unsigned int ioctl_num, unsigned long ioc
 			set_fileSize_from_socket ();
 			copy_to_user ((int*) ioctl_param, &fileSize, sizeof (int));
 			break;
-
+		case 4:{
+			int readbyte = 0;
+			printk("in ioctl 4\n");
+			readbyte = driver_os_recv (csock, sockbuf, 4096);
+			if(readbyte < 0){
+				printk("recv failed\n");
+				return -1;
+			}
+			printk("readbyte: %d\n", readbyte);
+			return readbyte;
+			break;
+	    }
 		default:
 			break;
 	}

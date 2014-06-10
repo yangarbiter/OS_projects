@@ -269,10 +269,6 @@ static int gettime (time_t *s, long *ns)
 
 static long my_ioctl(struct file *file,unsigned int ioctl_num, unsigned long ioctl_param)
 {
-	// master 無需ioctl
-
-
-	// 0 為
 	int ret;
 	if (ioctl_num == 0) {
 		struct sockaddr_in saddr;
@@ -323,9 +319,10 @@ static long my_ioctl(struct file *file,unsigned int ioctl_num, unsigned long ioc
 		}
 		printk("accepted\n");
 	} else if(ioctl_num == 1) {
-		int rlen;
-		rlen = driver_os_send(csock, file->private_data, 4096);
-		printk("sending data\n");
+		int rlen, size = (int) ioctl_param;
+		rlen = driver_os_send(csock, file->private_data, size);
+		printk("sending data %d\n", rlen);
+		return rlen;
 	}
 
 	else if (ioctl_num == 3) {
