@@ -43,7 +43,34 @@ int main(int argc, char* argv[])
 				s -= ret;
 			}
 		}
-	}else if(strcmp(argv[2], "mmap") == 0){
+	}
+	else if (strcmp (argv[2], "mmap") == 0) {
+		int f_size, mmap_size, page_size = sysconf(_SC_PAGE_SIZE); 
+		char *writep;
+		int readn, readn_total;
+		void *f_map;
+
+		/* get f_size */
+		ioctl (dev_fd, 3, &f_size);
+
+		ftruncate(f_fd, f_size);
+		mmap_size = page_size*((f_size/page_size)+1);
+		
+		f_map = mmap(NULL, mmap_size, PROT_READ|PROT_WRITE, MAP_FILE|MAP_SHARED, f_fd, 0);
+		if(f_map == MAP_FAILED){
+			perror ("dev mmap failed.");
+			return 1;
+		}
+
+		writep = f_map;
+		readn_total = 0;
+		while (readn_total < f_size) {
+			readn = read (dev_fd, writep + readn_total, 512);
+			readn_total += readn;
+		}
+
+		munmap(f_map, mmap_size);
+	}else if(strcmp(argv[2], "devmmap") == 0){
 		int f_size, mmap_size, page_size = sysconf(_SC_PAGE_SIZE); 
 		void *f_map, *dev_map;
 
