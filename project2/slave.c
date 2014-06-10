@@ -71,7 +71,7 @@ int main(int argc, char* argv[])
 
 		munmap(f_map, mmap_size);
 	}else if(strcmp(argv[2], "devmmap") == 0){
-		int f_size, mmap_size, page_size = sysconf(_SC_PAGE_SIZE); 
+		int f_size, mmap_size, page_size = sysconf(_SC_PAGE_SIZE), received; 
 		void *f_map, *dev_map;
 
 		/* get f_size */
@@ -85,15 +85,19 @@ int main(int argc, char* argv[])
 			perror ("dev mmap failed.");
 			return 1;
 		}
-		dev_map = mmap(NULL, mmap_size, PROT_READ|PROT_WRITE, MAP_FILE|MAP_SHARED, dev_fd, 0);
+		dev_map = mmap(NULL, page_size, PROT_READ|PROT_WRITE, MAP_FILE|MAP_SHARED, dev_fd, 0);
 		if(dev_map == MAP_FAILED){
 			perror ("dev mmap failed.");
 			return 1;
 		}
 
-		ioctl(dev_fd, 1, NULL);  //receive data
-
-		memcpy(f_map, dev_map, mmap_size);
+		received = 0;
+		while( f_size > received ){
+			int receive;
+			receive = ioctl(dev_fd, 4, NULL);  //receive data
+			memcpy(f_map+received, dev_map, receive);
+			received += receive;
+		}
 
 		munmap(f_map, mmap_size);
 		munmap(dev_map, mmap_size);
