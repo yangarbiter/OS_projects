@@ -46,7 +46,7 @@ static char * sockbuf;
 // static int datalen;
 static time_t st_s, ed_s;
 static long st_ns, ed_ns;
-static int fileSize;
+static int fileSize, readFileSize;
 static int firstRead;
 
 static int __init initialize(void)
@@ -251,6 +251,7 @@ static long my_ioctl(struct file *file,unsigned int ioctl_num, unsigned long ioc
 				if(readbyte == 0) break;
 			}
 			sockbuf[readn] = '\0';
+			readFileSize = readn;
 			break;
 		case 3 :
 			/* get fileSize */
@@ -267,6 +268,7 @@ static long my_ioctl(struct file *file,unsigned int ioctl_num, unsigned long ioc
 				return -1;
 			}
 			printk("readbyte: %d\n", readbyte);
+			readFileSize += readbyte;
 			return readbyte;
 			break;
 	    }
@@ -293,7 +295,7 @@ static int gettime (time_t *s, long *ns)
 static int my_open(struct inode *inode, struct file *file)
 {
 	gettime (&st_s, &st_ns);
-	fileSize = 0;
+	fileSize = readFileSize = 0;
 	firstRead = 1;
 	sockbuf = (char *)get_zeroed_page(GFP_KERNEL);
 	file->private_data = sockbuf;
@@ -314,7 +316,7 @@ static int my_close(struct inode *inode, struct file *file)
 	free_page((unsigned long)sockbuf);
 	file->private_data = NULL;
 
-	snprintf (msg, sizeof (msg), "Transmission time: %lld ms, File size: %d bytes\n", ms, fileSize);
+	snprintf (msg, sizeof (msg), "Transmission time: %lld ms, File size: %d bytes\n", ms, readFileSize);
 
 	printk (msg);
 	return 0;
@@ -394,6 +396,8 @@ static ssize_t my_read(struct file *filp, char __user *buff, size_t count, loff_
 
 	readp += readbyte;
 	remain -= readbyte;
+
+	readFileSize += readbyte;
 
 	return readbyte;
 }
