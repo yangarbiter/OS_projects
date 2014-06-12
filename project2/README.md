@@ -28,8 +28,13 @@ sudo insmod rs232_os_slave.ko
   * 1: receive all data.
   * 3: ioctl_param → porinter to file size(int). Get file size.
   * 4: Receive data with return value of how many bytes are sended/received.
+  * 5: ioctl_param → porinter to first page. Send the page to print it's ```struct page```.
+  * 6: ioctl_param → number of pages. Send the page count to device.
 
 * rs232_os_master: ioctl
   * 0: Create a scoket on port 8888.
   * 1: receive all data.
   * 3: ioctl_param → (int) size. Send the specified number of bytes(ioctl_param) in struct file -> private_data  through socket.
+  * 5: ioctl_param → porinter to first page. Send the page to print it's ```struct page```.
+  * 6: ioctl_param → number of pages. Send the page count to device.
+
