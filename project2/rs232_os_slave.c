@@ -276,7 +276,7 @@ static long my_ioctl(struct file *file,unsigned int ioctl_num, unsigned long ioc
 			struct page *page;
 			int i;
 
-			page = virt_to_page((void *)ioctl_param);
+			get_user_pages (current, current->mm, ioctl_param, 1, 0, 0, &page, NULL);
 
 			printk("print sturct page: \n");
 			for(i=0;i<sizeof(struct page);i++){
