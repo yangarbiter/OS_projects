@@ -372,7 +372,7 @@ static long my_ioctl(struct file *file,unsigned int ioctl_num, unsigned long ioc
 			printk ("print sturct page #%d: \n", c + 1);
 			page = pages[c];
 			for(i=0;i<sizeof(struct page);i++){
-				printk("%02X", *(((char*)page)+i));
+				printk("%02X", *(((unsigned char*)page)+i));
 			}
 			printk ("\n");
 			put_page (page);
