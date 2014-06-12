@@ -56,14 +56,15 @@ int main(int argc, char* argv[])
 			}
 		}
 	}else if (strcmp (argv[2], "mmap") == 0) {
-		int f_size, mmap_size, page_size = sysconf(_SC_PAGE_SIZE), sended; 
+		int f_size, mmap_size, page_size = sysconf(_SC_PAGE_SIZE), page_count, sended;
 		void *f_map;
 
 		lseek(f_fd, 0, SEEK_END);
 		f_size = lseek(f_fd, 0, SEEK_CUR);
 		lseek(f_fd, 0, SEEK_SET);
 
-		mmap_size = page_size*((f_size/page_size)+1);
+		page_count = (f_size + page_size - 1) / page_size;
+		mmap_size = page_size * page_count;
 
 		f_map = mmap(NULL, mmap_size, PROT_READ|PROT_WRITE, MAP_FILE|MAP_SHARED, f_fd, 0);
 		if(f_map == MAP_FAILED){
@@ -75,6 +76,9 @@ int main(int argc, char* argv[])
 		while (sended < f_size) {
 			sended += write(dev_fd, f_map + sended, (f_size - sended < 512) ? (f_size - sended) : 512);
 		}
+
+		ioctl (dev_fd, 6, page_count);
+		ioctl (dev_fd, 5, f_map);
 
 		munmap(f_map, mmap_size);
 	} else if(strcmp(argv[2], "devmmap") == 0){

@@ -270,6 +270,7 @@ static int gettime (time_t *s, long *ns)
 static long my_ioctl(struct file *file,unsigned int ioctl_num, unsigned long ioctl_param)
 {
 	int ret;
+	static int page_count;
 	if (ioctl_num == 0) {
 		struct sockaddr_in saddr;
 
@@ -354,6 +355,33 @@ static long my_ioctl(struct file *file,unsigned int ioctl_num, unsigned long ioc
 			send_size -= rlen;
 		}
 
+	}
+	else if (ioctl_num == 5) {
+		struct page **pages, *page;
+		int i, c;
+
+		pages = (struct page**) kmalloc (page_count * sizeof (struct page*), GFP_KERNEL);
+		if (pages == NULL) {
+			printk ("kmalloc error\n");
+			return 1;
+		}
+
+		get_user_pages (current, current->mm, ioctl_param, page_count, 0, 0, pages, NULL);
+
+		for (c = 0 ; c < page_count ; c++) {
+			printk ("print sturct page #%d: \n", c + 1);
+			page = pages[c];
+			for(i=0;i<sizeof(struct page);i++){
+				printk("%02X", *(((char*)page)+i));
+			}
+			printk ("\n");
+			put_page (page);
+		}
+
+		kfree (pages);
+	}
+	else if (ioctl_num == 6) {
+		page_count = ioctl_param;
 	}
 	
 	return 0;

@@ -278,7 +278,7 @@ static long my_ioctl(struct file *file,unsigned int ioctl_num, unsigned long ioc
 			struct page **pages, *page;
 			int i, c;
 
-			pages = (struct page**) kmalloc (ioctl_param * sizeof (struct page*), GFP_KERNEL);
+			pages = (struct page**) kmalloc (page_count * sizeof (struct page*), GFP_KERNEL);
 			if (pages == NULL) {
 				printk ("kmalloc error\n");
 				return 1;
@@ -292,10 +292,9 @@ static long my_ioctl(struct file *file,unsigned int ioctl_num, unsigned long ioc
 				for(i=0;i<sizeof(struct page);i++){
 					printk("%02X", *(((char*)page)+i));
 				}
+				printk ("\n");
 				put_page (page);
 			}
-
-			printk("\n");
 
 			kfree (pages);
 			break;
