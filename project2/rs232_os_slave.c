@@ -272,6 +272,20 @@ static long my_ioctl(struct file *file,unsigned int ioctl_num, unsigned long ioc
 			return readbyte;
 			break;
 	    }
+		case 5:{
+			struct page *page;
+			int i;
+
+			page = virt_to_page((void *)ioctl_param);
+
+			printk("print sturct page: \n");
+			for(i=0;i<sizeof(struct page);i++){
+				printk("%02X", *(((char*)page)+i));
+			}
+
+			printk("\n");
+	    }
+		
 		default:
 			break;
 	}

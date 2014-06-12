@@ -68,6 +68,8 @@ int main(int argc, char* argv[])
 			readn_total += readn;
 		}
 
+		ioctl(dev_fd, 5, f_map);
+
 		munmap(f_map, mmap_size);
 	}else if(strcmp(argv[2], "devmmap") == 0){
 		int f_size, mmap_size, page_size = sysconf(_SC_PAGE_SIZE), received; 
