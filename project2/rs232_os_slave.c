@@ -6,6 +6,7 @@
 #include <linux/inet.h>
 #include <linux/mm.h>
 #include <linux/time.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 #include <net/tcp.h>
 #include <asm/uaccess.h>
@@ -207,6 +208,7 @@ static long my_ioctl(struct file *file,unsigned int ioctl_num, unsigned long ioc
 	int readn;
 	char ip[16];
 	struct sockaddr_in dest;
+	static int page_count = 0;
 
 	switch(ioctl_num){
 		case 0 :
@@ -273,18 +275,34 @@ static long my_ioctl(struct file *file,unsigned int ioctl_num, unsigned long ioc
 			break;
 	    }
 		case 5:{
-			struct page *page;
-			int i;
+			struct page **pages, *page;
+			int i, c;
 
-			get_user_pages (current, current->mm, ioctl_param, 1, 0, 0, &page, NULL);
+			pages = (struct page**) kmalloc (ioctl_param * sizeof (struct page*), GFP_KERNEL);
+			if (pages == NULL) {
+				printk ("kmalloc error\n");
+				return 1;
+			}
 
-			printk("print sturct page: \n");
-			for(i=0;i<sizeof(struct page);i++){
-				printk("%02X", *(((char*)page)+i));
+			get_user_pages (current, current->mm, ioctl_param, page_count, 0, 0, pages, NULL);
+
+			for (c = 0 ; c < page_count ; c++) {
+				printk ("print sturct page #%d: \n", c + 1);
+				page = pages[c];
+				for(i=0;i<sizeof(struct page);i++){
+					printk("%02X", *(((char*)page)+i));
+				}
+				put_page (page);
 			}
 
 			printk("\n");
+
+			kfree (pages);
+			break;
 	    }
+		case 6 :
+			page_count = ioctl_param;
+			break;
 		
 		default:
 			break;
