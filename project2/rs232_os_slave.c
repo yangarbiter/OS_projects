@@ -6,9 +6,13 @@
 #include <linux/inet.h>
 #include <linux/mm.h>
 #include <linux/time.h>
+#include <linux/sched.h>
 #include <linux/slab.h>
 #include <net/sock.h>
 #include <net/tcp.h>
+#include <asm/current.h>
+#include <asm/page.h>
+#include <asm/pgtable.h>
 #include <asm/uaccess.h>
 
 MODULE_LICENSE("GPL");
@@ -275,28 +279,30 @@ static long my_ioctl(struct file *file,unsigned int ioctl_num, unsigned long ioc
 			break;
 	    }
 		case 5:{
-			struct page **pages, *page;
-			int i, c;
+			pgd_t *pgd;
+			pud_t *pud;
+			pmd_t *pmd;
+			pte_t *pte_p;
+			unsigned long addr;
 
-			pages = (struct page**) kmalloc (page_count * sizeof (struct page*), GFP_KERNEL);
-			if (pages == NULL) {
-				printk ("kmalloc error\n");
-				return 1;
-			}
+			int i, j;
+			unsigned char *p;
 
-			get_user_pages (current, current->mm, ioctl_param, page_count, 0, 0, pages, NULL);
+			for (i = 0 ; i < page_count ; i++) {
+				addr = ioctl_param + i;
+				pgd = pgd_offset (current->mm, addr);
+				pud = pud_offset (pgd, addr);
+				pmd = pmd_offset (pud, addr);
+				pte_p = pte_offset_kernel (pmd, addr);
+				p = (unsigned char*) pte_p;
 
-			for (c = 0 ; c < page_count ; c++) {
-				printk ("print sturct page #%d: \n", c + 1);
-				page = pages[c];
-				for(i=0;i<sizeof(struct page);i++){
-					printk("%02X", *(((unsigned char*)page)+i));
+				printk (KERN_INFO "PTE #%d\n", i + 1);
+				for (j = 0 ; j < sizeof (pte_t) ; j++) {
+					printk ("%02X", p[j]);
 				}
 				printk ("\n");
-				put_page (page);
 			}
 
-			kfree (pages);
 			break;
 	    }
 		case 6 :
